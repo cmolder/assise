@@ -1061,21 +1061,78 @@ int itrunc(struct inode *ip, offset_t length)
 	return ret;
 }
 
+/* Call in transaction */
+int ichown(struct inode *ip, uid_t owner, gid_t group) {
+
+#if MLFS_LEASE
+	panic("ichown not implemented yet.\n")
+#if 0
+	acquire_lease(inum, type, path);
+
+	int precheck = chown_perm_check(owner, group);
+	if (precheck != 0)
+		return precheck;
+
+	pthread_mutex_lock(&ip->i_mutex);
+	if (owner >= 0)
+		ip->uid = owner;
+	if(group >= 0)
+		ip->gid = group;
+	iupdate(ip);
+	pthread_mutex_unlock(&ip->i_mutex);
+
+	return 0;
+#endif
+#else
+	panic("ichown not supported without leases.\n");
+#endif
+}
+
+/* Call in transaction */
+int ichmod(struct inode *ip, mode_t mode) {
+
+#if MLFS_LEASE
+	panic("ichmod not implemented yet.\n");
+#if 0
+	if (mode & S_ISUID) {
+		mlfs_info("%s: chmod of setuid bit not supported\n", __func__);
+		return -EINVAL;
+	}
+
+	/* FIXME: check if caller doesn't have CAP_FOWNER, instead of geteuid() != root */
+	if (geteuid() != 0 && ip->uid != geteuid()) {
+		return -EPERM;
+	}
+
+	pthread_mutex_lock(&ip->i_mutex);
+	ip->perms = mode;
+	iupdate(ip);
+	pthread_mutex_unlock(&ip->i_mutex);
+	return 0;
+#endif
+#else
+	panic("ichmod not supported without leases.\n");
+#endif
+}
+
 void stati(struct inode *ip, struct stat *st)
 {
 	mlfs_assert(ip);
 
 	st->st_dev = g_root_dev;
 	st->st_ino = ip->inum;
-	st->st_mode = 0;
-			if(ip->itype == T_DIR)
+	st->st_mode = ip->perms;
+
+#if 0
+	if(ip->itype == T_DIR)
 		st->st_mode |= S_IFDIR;
 	else
 		st->st_mode |= S_IFREG;
+#endif
 
 	st->st_nlink = ip->nlink;
-	st->st_uid = 0;
-	st->st_gid = 0;
+	st->st_uid = ip->uid;
+	st->st_gid = ip->gid;
 	st->st_rdev = 0;
 	st->st_size = ip->size;
 	st->st_blksize = g_block_size_bytes;

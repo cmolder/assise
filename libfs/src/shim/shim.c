@@ -589,6 +589,51 @@ int shim_do_getdents64(int fd, struct linux_dirent64 *buf, size_t count, size_t*
 
 }
 
+static int shim_do_chown(const char *path, uid_t owner, gid_t group, int *result) {
+  char path_buf[PATH_BUF_SIZE];
+
+  if (!is_mlfs_path(path, path_buf)) {
+    return 1;
+  } else {
+    *result = mlfs_posix_chown(path, owner, group);
+    syscall_trace(__func__, *result, 3, path, owner, group);
+    return 0;
+  }
+}
+
+static int shim_do_fchown(int fd, uid_t owner, gid_t group, int *result) {
+  if (check_mlfs_fd(fd)) {
+    *result = mlfs_posix_fchown(get_mlfs_fd(fd), owner, group);
+    syscall_trace(__func__, *result, 3, fd, owner, group);
+    return 0;
+  } else {
+    return 1;
+  }
+}
+
+static int shim_do_chmod(const char *path, mode_t mode, int *result) {
+  char path_buf[PATH_BUF_SIZE];
+
+  if (!is_mlfs_path(path, path_buf)) {
+    return 1;
+  } else {
+    *result = mlfs_posix_chmod(path, mode);
+    syscall_trace(__func__, *result, 2, path, mode);
+    return 0;
+  }
+  return 1;
+}
+
+static int shim_do_fchmod(int fd, mode_t mode, int *result) {
+  if (check_mlfs_fd(fd)) {
+    *result = mlfs_posix_fchmod(get_mlfs_fd(fd), mode);
+    syscall_trace(__func__, *result, 2, fd, mode);
+    return 0;
+  } else {
+    return 1;
+  }
+}
+
 
 static int
 hook(long syscall_number,

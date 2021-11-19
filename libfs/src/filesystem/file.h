@@ -40,7 +40,7 @@ struct file *mlfs_file_alloc(void);
 struct file *mlfs_file_dup(struct file *f);
 
 int mlfs_file_close(struct file *f);
-struct inode *mlfs_object_create(char *path, unsigned short mode);
+struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode);
 
 int mlfs_file_stat(struct file *f, struct stat *st);
 ssize_t mlfs_file_read(struct file *f, struct mlfs_reply *reply, size_t n);

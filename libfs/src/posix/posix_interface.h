@@ -31,6 +31,10 @@ void *mlfs_posix_mmap(int fd);
 size_t mlfs_posix_getdents(int fd, struct linux_dirent *buf, size_t nbytes, offset_t off);
 size_t mlfs_posix_getdents64(int fd, struct linux_dirent64 *buf, size_t nbytes, offset_t off);
 int mlfs_posix_fcntl(int fd, int cmd, void *arg);
+int mlfs_posix_chmod(const char* path, mode_t mode);
+int mlfs_posix_fchmod(int fd, mode_t mode);
+int mlfs_posix_chown(const char *path, uid_t owner, gid_t group);
+int mlfs_posix_fchown(int fd, uid_t owner, gid_t group);
 
 #ifdef __cplusplus
 }

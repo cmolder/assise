@@ -687,6 +687,8 @@ void iput(struct inode*);
 void iunlock(struct inode*);
 void iunlockput(struct inode*);
 void iupdate(struct inode*);
+int ichown(struct inode *ip, uid_t owner, gid_t group);
+int ichmod(struct inode *ip, mode_t mode);
 int itrunc(struct inode *inode, offset_t length);
 int bmap(struct inode *ip, struct bmap_request *bmap_req);
 

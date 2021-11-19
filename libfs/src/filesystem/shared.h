@@ -309,6 +309,10 @@ struct dinode {
 
 	uint64_t size;		// Size of file (bytes)
 
+	uint16_t perms;     // Permissions
+	uint32_t uid;
+	uint32_t gid;
+
 	mlfs_time_t atime;
 	mlfs_time_t ctime;
 	mlfs_time_t mtime;
@@ -365,6 +369,10 @@ struct inode {
 #endif
 
 	uint64_t size;      // Size of file (bytes)
+
+	uint16_t perms;     // Permissions
+	uint32_t uid;
+	uint32_t gid;
 
 	mlfs_time_t atime;
 	mlfs_time_t ctime;

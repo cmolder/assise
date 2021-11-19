@@ -49,6 +49,12 @@ static int isdirempty(struct inode *dp)
 }
 #endif
 
+enum permcheck_type {
+	PC_READ,
+	PC_WRITE,
+	PC_EXECUTE
+};
+
 int posix_init = 0;
 
 #define SHM_START_PATH "/shm_lease_test"
@@ -78,7 +84,7 @@ void* create_shm() {
 	return addr;
 }
 
-int mlfs_posix_open(char *path, int flags, uint16_t mode)
+int mlfs_posix_open(char *path, int flags, mode_t mode)
 {
 	struct file *f;
 	struct inode *inode;
@@ -115,7 +121,7 @@ int mlfs_posix_open(char *path, int flags, uint16_t mode)
 		if (flags & O_DIRECTORY)
 			panic("O_DIRECTORY cannot be set with O_CREAT\n");
 
-		inode = mlfs_object_create(path, T_FILE);
+		inode = mlfs_object_create(path, T_FILE, mode);
 
 		if (!inode) {
 			return -ENOENT;
@@ -198,17 +204,27 @@ int mlfs_posix_access(char *pathname, int mode)
 
 	mlfs_posix("[POSIX] access(%s)\n", pathname);
 
+#if MLFS_LEASE
+	// TODO: this was in no_access_strata, should we keep? Check out F_OK
+	if (mode == F_OK)
+		return 0;
+
+	// This should do perm check automatically via lease.
+	inode = namei(pathname); 
+
+	if (!inode)
+		return -ENOENT; // TODO: Should communicate whether it was ENOENT of EACCES
+#else
 	if (mode != F_OK)
-		panic("does not support other than F_OK\n");
+		panic("does not support other than F_OK without leases\n");
 
 	inode = namei(pathname);
 
 	if (!inode) {
 		return -ENOENT;
 	}
-
+#endif
 	iput(inode);
-
 	return 0;
 }
 
@@ -419,7 +435,7 @@ int mlfs_posix_mkdir(char *path, mode_t mode)
 	mlfs_posix("[POSIX] mkdir(%s)\n", path);
 
 	// return inode with holding ilock.
-	inode = mlfs_object_create(path, T_DIR);
+	inode = mlfs_object_create(path, T_DIR, mode);
 
 	if (!inode) {
 		//abort_log_tx();
@@ -824,7 +840,7 @@ size_t mlfs_posix_getdents64(int fd, struct linux_dirent64 *buf,
 	if (nbytes < f->ip->size) 
 		return -EINVAL;
 	*/
-
+''
 	for(;;)	{
 		if (f->off >= f->ip->size)
 			return 0;
@@ -858,6 +874,90 @@ int mlfs_posix_fcntl(int fd, int cmd, void *arg)
 	}
 
 	return 0;
+}
+
+int mlfs_posix_chmod(const char* path, mode_t mode)
+{
+	panic("chmod not implemented!\n");
+
+#if 0
+	start_log_tx();
+	struct inode *inode;
+
+	if ((inode = namei(path)) == NULL) {
+		return -ENOENT;
+	}
+
+	int ret = ichmod(inode, mode);
+	iput(inode);
+	commit_log_tx();
+	return ret;
+#endif
+}
+
+int mlfs_posix_fchmod(int fd, mode_t mode) 
+{
+	panic("fchmod not implemented!\n");
+
+#if 0
+	start_log_tx();
+	struct file *f = &g_fd_table.open_files[fd];
+	mlfs_assert(f);
+
+	pthread_rwlock_rdlock(&f->rw_lock);
+	int refcnt = f->ref;
+	pthread_rwlock_unlock(&f->rw_lock);
+
+	if (refcnt == 0) {
+		return -EBADF;
+	}
+
+	int ret = ichmod(f->ip, mode);
+	commit_log_tx();
+	return ret;
+#endif
+}
+
+int mlfs_posix_chown(const char* path, uid_t owner, gid_t group)
+{
+	panic("chown not implemented!\n");
+
+#if 0
+	start_log_tx();
+	struct inode *inode;
+
+	if ((inode = namei(path)) == NULL) {
+		return -ENOENT;
+	}
+
+	int ret = ichown(inode, owner, group);
+	iput(inode);
+	commit_log_tx();
+	return ret;
+#endif
+}
+
+int mlfs_posix_fchown(const char* path, uid_t owner, gid_t group)
+{
+	panic("fchown not implemented!\n");
+
+#if 0
+	start_log_tx();
+	struct file *f = &g_fd_table.open_files[fd];
+	mlfs_assert(f);
+
+	pthread_rwlock_rdlock(&f->rw_lock);
+	int refcnt = f->ref;
+	pthread_rwlock_unlock(&f->rw_lock);
+
+	if (refcnt == 0) {
+		return -EBADF;
+	}
+
+	int ret = ichown(f->ip, owner, group);
+	commit_log_tx();
+	return ret;
+#endif
 }
 
 #ifdef __cplusplus

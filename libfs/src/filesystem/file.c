@@ -394,7 +394,7 @@ int mlfs_file_fallocate(struct file *f, offset_t offset, size_t len)
 	return 0;
 }
 
-struct inode *mlfs_object_create(char *path, unsigned short type)
+struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode)
 {
 	offset_t offset;
 	struct inode *inode = NULL;
@@ -476,6 +476,8 @@ struct inode *mlfs_object_create(char *path, unsigned short type)
 
 	// create new (locked) inode
 	inode = icreate(type);
+	if(!inode)
+		panic("Cannot create inode");
 
 	if (enable_perf_stats) {
 		tsc_end = asm_rdtscp();
@@ -485,6 +487,19 @@ struct inode *mlfs_object_create(char *path, unsigned short type)
 
 	inode->itype = type;
 	inode->nlink = 1;
+
+	// Add permissions (if leases enabled).
+#if MLFS_LEASE
+	inode->perms = mode & ~get_umask();
+	inode->uid = geteuid();
+	if((parent_inode->perms & S_ISGID) != 0) {
+		mlfs_info("trigger sgid parent %d\n", parent_inode->gid);
+		inode->gid = parent_inode->gid;
+		inode->perms |= S_ISGID;
+	} else {
+		inode->gid = getegid();
+	}
+#endif
 
 	iunlock(inode);
 
