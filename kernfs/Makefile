@@ -30,7 +30,7 @@ SPDK_ROOT_DIR := $(abspath $(CURDIR)/lib/spdk)
 CUCKOO_FILTER_DIR := $(abspath $(LIBFS_DIR)/lib/cuckoofilter)
 CUCKOO_DIR := $(abspath $(LIBFS_DIR)/lib/libcuckoo)
 GLIB_DIR := $(abspath $(LIBFS_DIR)/lib/glib)
-#JEMALLOC_DIR := $(abspath $(LIBFS_DIR)/lib/jemalloc-4.5.0)
+JEMALLOC_DIR := $(abspath $(LIBFS_DIR)/lib/jemalloc-4.5.0)
 STORAGE_ENGINE := $(wildcard $(LIBFS_DIR)/build/storage/*.o)
 RDMA_DIR := $(abspath $(LIBFS_DIR)/lib/rdma)
 RDMA_CORE_DIR := $(abspath $(LIBFS_DIR)/lib/rdma-core/build/include)
@@ -62,9 +62,9 @@ MLFS_FLAGS += -DCONCURRENT
 #MLFS_FLAGS += -DMIGRATION
 #MLFS_FLAGS += -DEXPERIMENTAL
 
-#DEBUG = -g -O0
+DEBUG = -g 
 #DEBUG = -g3 -Ofast
-DEBUG = -O3
+#DEBUG = -O3
 
 # only include SPDK if ENABLE_MEMCPY_OFFLOAD flag is set
 

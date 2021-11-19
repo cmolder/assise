@@ -72,9 +72,9 @@ MLFS_FLAGS += -DKLIB_HASH
 
 #DEBUG = -g3 -O0
 #DEBUG = -O0 -gdwarf-2 -g3 -rdynamic
-#DEBUG = -g -O2
+DEBUG = -g 
 #DEBUG = -g -Ofast
-DEBUG = -O3
+#DEBUG = -O3
 
 ########
 #  vpath and compile function for each file

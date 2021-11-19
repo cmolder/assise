@@ -429,7 +429,13 @@ int acquire_lease(uint32_t inum, int type, char *path)
 {
 	mlfs_printf("LIBFS ID= %d trying to acquire lease of type %d for inum %u\n", g_self_id, type, inum);
 
+        mlfs_printf("Hello world!\n", 5);
+
+	mlfs_printf("Trying to lcache_find inum %d\n", inum);
+
 	mlfs_lease_t* ls = lcache_find(inum);
+
+	mlfs_printf("Got out of lcache_find\n", 5);
 
 	int i_dirty = 0;
 
