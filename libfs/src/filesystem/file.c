@@ -394,6 +394,12 @@ int mlfs_file_fallocate(struct file *f, offset_t offset, size_t len)
 	return 0;
 }
 
+static mode_t get_umask() {
+  mode_t mask = umask(0);
+  umask(mask);
+  return mask;
+}
+
 struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode)
 {
 	offset_t offset;

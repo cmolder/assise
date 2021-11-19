@@ -592,7 +592,10 @@ int shim_do_getdents64(int fd, struct linux_dirent64 *buf, size_t count, size_t*
 static int shim_do_chown(const char *path, uid_t owner, gid_t group, int *result) {
   char path_buf[PATH_BUF_SIZE];
 
-  if (!is_mlfs_path(path, path_buf)) {
+  memset(path_buf, 0, PATH_BUF_SIZE);
+  collapse_name(path, path_buf);
+
+  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){ {
     return 1;
   } else {
     *result = mlfs_posix_chown(path, owner, group);
@@ -614,7 +617,10 @@ static int shim_do_fchown(int fd, uid_t owner, gid_t group, int *result) {
 static int shim_do_chmod(const char *path, mode_t mode, int *result) {
   char path_buf[PATH_BUF_SIZE];
 
-  if (!is_mlfs_path(path, path_buf)) {
+  memset(path_buf, 0, PATH_BUF_SIZE);
+  collapse_name(path, path_buf);
+
+  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){ {
     return 1;
   } else {
     *result = mlfs_posix_chmod(path, mode);

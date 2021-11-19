@@ -198,7 +198,7 @@ int mlfs_posix_open(char *path, int flags, mode_t mode)
 	return SET_MLFS_FD(fd);
 }
 
-int mlfs_posix_access(char *pathname, int mode)
+int mlfs_posix_access(char *pathname, mode_t mode)
 {
 	struct inode *inode;
 
@@ -228,7 +228,7 @@ int mlfs_posix_access(char *pathname, int mode)
 	return 0;
 }
 
-int mlfs_posix_creat(char *path, uint16_t mode)
+int mlfs_posix_creat(char *path, mode_t mode)
 {
 	return mlfs_posix_open(path, O_CREAT|O_RDWR, mode);
 }
@@ -840,7 +840,7 @@ size_t mlfs_posix_getdents64(int fd, struct linux_dirent64 *buf,
 	if (nbytes < f->ip->size) 
 		return -EINVAL;
 	*/
-''
+
 	for(;;)	{
 		if (f->off >= f->ip->size)
 			return 0;
@@ -937,7 +937,7 @@ int mlfs_posix_chown(const char* path, uid_t owner, gid_t group)
 #endif
 }
 
-int mlfs_posix_fchown(const char* path, uid_t owner, gid_t group)
+int mlfs_posix_fchown(int fd, uid_t owner, gid_t group)
 {
 	panic("fchown not implemented!\n");
 
