@@ -320,7 +320,9 @@ struct dinode {
 	addr_t l1_addrs[NDIRECT+1];	//direct block addresses: 64 B
 	addr_t l2_addrs[NDIRECT+1];	
 	addr_t l3_addrs[NDIRECT+1];	
-}; // 256 bytes.
+
+	char padding[240]; // Get dinode to 512 bytes (for disk ailgnment)
+}; // 512 bytes.
 
 #define setup_ondisk_inode(dip, type) \
 	memset(dip, 0, sizeof(struct dinode)); \
@@ -401,6 +403,8 @@ struct inode {
 
 		addr_t addrs[NDIRECT+1];    // Data block addresses
 	} l3;
+
+	char padding[240]; // Get inode to 512 bytes (for disk ailgnment)
 
 	// This must be identical to struct dinode
 	// When in-memory inode is initialized, the contents are synced with dinode.

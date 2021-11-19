@@ -58,7 +58,7 @@ void mlfs_setup(void);
 
 #define N_FILE_PER_DIR (g_block_size_bytes / sizeof(struct mlfs_dirent))
 
-#define NINODES 300000
+#define NINODES 150000
 #define g_max_open_files 1000000
 
 // maximum size of full path

@@ -595,7 +595,7 @@ static int shim_do_chown(const char *path, uid_t owner, gid_t group, int *result
   memset(path_buf, 0, PATH_BUF_SIZE);
   collapse_name(path, path_buf);
 
-  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){ {
+  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){
     return 1;
   } else {
     *result = mlfs_posix_chown(path, owner, group);
@@ -620,7 +620,7 @@ static int shim_do_chmod(const char *path, mode_t mode, int *result) {
   memset(path_buf, 0, PATH_BUF_SIZE);
   collapse_name(path, path_buf);
 
-  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){ {
+  if (strncmp(path_buf, MLFS_PREFIX, 5) != 0){
     return 1;
   } else {
     *result = mlfs_posix_chmod(path, mode);
