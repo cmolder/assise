@@ -793,6 +793,7 @@ size_t mlfs_posix_getdents(int fd, struct linux_dirent *buf,
 {
 	struct file *f;
 	int bytes;
+	mlfs_posix("[POSIX] getdents(fd=%d, nbytes=%d, off=%d)", fd, nbytes, off);
 
 	f = &g_fd_table.open_files[fd];
 
@@ -829,6 +830,7 @@ size_t mlfs_posix_getdents64(int fd, struct linux_dirent64 *buf,
 {
 	struct file *f;
 	int bytes;
+	mlfs_posix("[POSIX] getdents64(fd=%d, nbytes=%d, off=%d)", fd, nbytes, off);
 
 	f = &g_fd_table.open_files[fd];
 

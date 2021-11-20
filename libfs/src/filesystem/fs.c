@@ -1122,14 +1122,13 @@ void stati(struct inode *ip, struct stat *st)
 
 	st->st_dev = g_root_dev;
 	st->st_ino = ip->inum;
-	st->st_mode = ip->perms;
 
-#if 0
+	// Get file mode (file type + perms)
+	st->st_mode = ip->perms;
 	if(ip->itype == T_DIR)
 		st->st_mode |= S_IFDIR;
 	else
 		st->st_mode |= S_IFREG;
-#endif
 
 	st->st_nlink = ip->nlink;
 	st->st_uid = ip->uid;
