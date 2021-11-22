@@ -494,7 +494,7 @@ struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode)
 	inode->itype = type;
 	inode->nlink = 1;
 
-	// Add permissions (if leases enabled).
+	// Add permissions (TODO Use separate flag other than leases).
 #if MLFS_LEASE
 	inode->perms = mode & ~get_umask();
 	inode->uid = geteuid();
@@ -507,6 +507,7 @@ struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode)
 	}
 #endif
 
+	mlfs_printf("Creating inode with perms: %o, uid: %d, gid: %d, ctime: %d\n", inode->perms, inode->uid, inode->gid, inode->ctime);
 	iunlock(inode);
 
 	add_to_loghdr(L_TYPE_INODE_CREATE, inode, 0, 
@@ -538,5 +539,6 @@ struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode)
 	if (log_entry)
 		mlfs_free(log_entry);
 
+	mlfs_printf("Returning inode with perms: %o, uid: %d, gid: %d\n, ctime: %d\n", inode->perms, inode->uid, inode->gid, inode->ctime);
 	return inode;
 }

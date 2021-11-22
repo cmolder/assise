@@ -677,6 +677,10 @@ hook(long syscall_number,
     case SYS_munmap: return shim_do_munmap((void*)arg0, (size_t)arg1, (int*)result);
     case SYS_getdents: return shim_do_getdents((int)arg0, (struct linux_dirent*)arg1, (size_t)arg2, (size_t*)result);
     case SYS_getdents64: return shim_do_getdents64((int)arg0, (struct linux_dirent64*)arg1, (size_t)arg2, (size_t*)result);
+    case SYS_chown: return shim_do_chown((void*)arg0, (uid_t)arg1, (gid_t)arg2, (int*)result);
+    case SYS_fchown: return shim_do_fchown((int)arg0, (uid_t)arg1, (gid_t)arg2, (int*)result);
+    case SYS_chmod: return shim_do_chmod((void*)arg0, (mode_t)arg1, (int*)result);
+    case SYS_fchmod: return shim_do_fchmod((int)arg0, (mode_t)arg1, (int*)result);
   }
   return 1;
 }

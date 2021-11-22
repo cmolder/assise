@@ -459,8 +459,10 @@ int mlfs_posix_stat(const char *filename, struct stat *stat_buf)
 	inode = namei((char *)filename);
 
 	if (!inode) {
+		mlfs_posix("[POSIX] stat(%s): inode not found\n", filename);
 		return -ENOENT;
 	}
+	mlfs_posix("[POSIX] stat(%s): inode found\n", filename);
 
 	stati(inode, stat_buf);
 
@@ -475,8 +477,11 @@ int mlfs_posix_fstat(int fd, struct stat *stat_buf)
 
 	f = &g_fd_table.open_files[fd];
 
-	if (f->ref == 0) 
+	if (f->ref == 0) {
+		mlfs_posix("[POSIX] fstat(%d): file not found\n", fd);
 		return -ENOENT;
+	}
+	mlfs_posix("[POSIX] fstat(%d): file found\n", fd);
 
 	mlfs_assert(f->ip);
 
@@ -788,6 +793,7 @@ size_t mlfs_posix_getdents(int fd, struct linux_dirent *buf,
 {
 	struct file *f;
 	int bytes;
+	mlfs_posix("[POSIX] getdents(fd=%d, nbytes=%d, off=%d)", fd, nbytes, off);
 
 	f = &g_fd_table.open_files[fd];
 
@@ -824,6 +830,7 @@ size_t mlfs_posix_getdents64(int fd, struct linux_dirent64 *buf,
 {
 	struct file *f;
 	int bytes;
+	mlfs_posix("[POSIX] getdents64(fd=%d, nbytes=%d, off=%d)", fd, nbytes, off);
 
 	f = &g_fd_table.open_files[fd];
 
