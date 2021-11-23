@@ -174,8 +174,10 @@ __attribute__((visibility ("hidden")))
 inline void* mp_create_shm(char* path, size_t size) {
 	void * addr;
 
-	debug_print("mp_create_shm: %s\n", path);	
-	int fd = shm_open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+	debug_print("mp_create_shm: %s\n", path);
+	// The root running Kernfs is initializing this, but since it is the send/receive path
+	// for RPC, any LibFS needs to be able to write to it	
+	int fd = shm_open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IRGRP | S_IWGRP );
 	if (fd < 0) {
 		perror("shm_open failed.\n");
 		exit(-1);
