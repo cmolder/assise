@@ -142,11 +142,11 @@ int mlfs_posix_open(char *path, int flags, mode_t mode)
 		}
 
 		if ((flags & O_WRONLY) || (flags & O_RDWR)) {
-			int result = acquire_lease(dir_inode, LEASE_WRITE, parent_path);
+			int result = acquire_lease(inode->inum, LEASE_WRITE, path);
 			if (result == -1)
 				return -EPERM;
 		} else if (flags & O_RDONLY) {
-			int result = acquire_lease(dir_inode, LEASE_READ, parent_path);
+			int result = acquire_lease(inode->inum, LEASE_READ, path);
 			if (result == -1)
 				return -EPERM;
 		}

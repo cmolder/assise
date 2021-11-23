@@ -61,7 +61,7 @@ int main(int argc, char ** argv)
 		 printf("--- open(RDONLY)/read/unlink/close\n");
 	*/
 
-    fd3 = open("/mlfs/testfile2", O_RDWR|O_CREAT, 0600);
+    fd3 = open("/mlfs/testfile2", O_RDWR, 0600);
 
     if (fd3 < 0) {
         perror("open with O_CREAT");
