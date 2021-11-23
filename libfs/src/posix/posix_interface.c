@@ -141,15 +141,18 @@ int mlfs_posix_open(char *path, int flags, mode_t mode)
 			return -ENOENT;
 		}
 
-		if ((flags & O_WRONLY) || (flags & O_RDWR)) {
-			int result = acquire_lease(inode->inum, LEASE_WRITE, path);
-			if (result == -1)
-				return -EPERM;
-		} else if (flags & O_RDONLY) {
-			int result = acquire_lease(inode->inum, LEASE_READ, path);
-			if (result == -1)
-				return -EPERM;
-		}
+
+		#if MLFS_PERMISSIONS
+			if ((flags & O_WRONLY) || (flags & O_RDWR)) {
+				int result = acquire_lease(inode->inum, LEASE_WRITE, path);
+				if (result == -1)
+					return -EPERM;
+			} else if (flags & O_RDONLY) {
+				int result = acquire_lease(inode->inum, LEASE_READ, path);
+				if (result == -1)
+					return -EPERM;
+			}
+		#endif
 
 		if (inode->itype == T_DIR) {
 			if (!(flags |= (O_RDONLY|O_DIRECTORY))) {
@@ -214,7 +217,7 @@ int mlfs_posix_access(char *pathname, mode_t mode)
 
 	mlfs_posix("[POSIX] access(%s)\n", pathname);
 
-#if MLFS_LEASE
+#if MLFS_PERMISSIONS
 	// TODO: this was in no_access_strata, should we keep? Check out F_OK
 	if (mode == F_OK)
 		return 0;
@@ -224,6 +227,8 @@ int mlfs_posix_access(char *pathname, mode_t mode)
 
 	if (!inode)
 		return -ENOENT; // TODO: Should communicate whether it was ENOENT of EACCES
+	
+	// TODO: Actual permission check
 #else
 	if (mode != F_OK)
 		panic("does not support other than F_OK without leases\n");
@@ -258,8 +263,19 @@ int mlfs_posix_read(int fd, uint8_t *buf, int count)
 
 	if (f->ref == 0) {
 		panic("file descriptor is wrong\n");
+		pthread_rwlock_unlock(&f->rwlock);
 		return -EBADF;
 	}
+
+
+	#if MLFS_PERMISSIONS
+	if (f->readable == 0) {
+		panic("file is not readable\n");
+		pthread_rwlock_unlock(&f->rwlock);
+		return -EPERM;
+	}
+	#endif
+	
 
 	struct mlfs_reply *reply = mlfs_zalloc(sizeof(struct mlfs_reply));
 	reply->dst = buf;
@@ -287,6 +303,14 @@ int mlfs_posix_pread64(int fd, uint8_t *buf, int count, loff_t off)
 		panic("file descriptor is wrong\n");
 		return -EBADF;
 	}
+
+	#if MLFS_PERMISSIONS
+	if (f->readable == 0) {
+		panic("file is not readable\n");
+		pthread_rwlock_unlock(&f->rwlock);
+		return -EPERM;
+	}
+	#endif
 
 	struct mlfs_reply *reply = mlfs_zalloc(sizeof(struct mlfs_reply));
 	reply->dst = buf;
@@ -321,6 +345,14 @@ int mlfs_posix_write(int fd, uint8_t *buf, size_t count)
 		panic("file descriptor is wrong\n");
 		return -EBADF;
 	}
+
+	#if MLFS_PERMISSIONS
+	if (f->writable == 0) {
+		panic("file is not writeable\n");
+		pthread_rwlock_unlock(&f->rwlock);
+		return -EPERM;
+	}
+	#endif
 
 	//if (enable_perf_stats)
 	//	start_tsc_tmp = asm_rdtscp();
@@ -368,6 +400,14 @@ int mlfs_posix_pwrite64(int fd, uint8_t *buf, size_t count, loff_t off)
                 errno = EBADF;
                 return -1;
 	}
+
+	#if MLFS_PERMISSIONS
+	if (f->writable == 0) {
+		panic("file is not writeable\n");
+		pthread_rwlock_unlock(&f->rwlock);
+		return -EPERM;
+	}
+	#endif
 
 	ret = mlfs_file_write(f, buf, count, off);
 

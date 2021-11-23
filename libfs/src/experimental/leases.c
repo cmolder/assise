@@ -611,7 +611,8 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			inum, ls->state, new_state, req_id, ls->hid, ls->holders);
 
 	if(new_state == LEASE_READ) {
-		panic("read path not implemented!\n");
+		return 1;
+		//panic("read path not implemented!\n");
 	}
 	else if(new_state == LEASE_FREE) {
 		ls->lversion = version;
@@ -729,7 +730,8 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			inum, ls->state, new_state, req_id, ls->hid, ls->holders);
 
 	if(new_state == LEASE_READ) {
-		panic("read path not implemented!\n");
+		return 1;
+		//panic("read path not implemented!\n");
 	}
 	else if(new_state == LEASE_FREE) {
 		// if previous state is write, update log params

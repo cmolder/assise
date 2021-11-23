@@ -455,10 +455,10 @@ struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode)
 
 #if MLFS_LEASE
 		// still need to acquire lease on file (due to ctime update)
-		//acquire_lease(inode->inum, LEASE_WRITE, path);
+		acquire_lease(inode->inum, LEASE_WRITE, path);
 
 		// release parent directory; no need to recreate file
-		//mark_lease_revocable(parent_inode->inum);
+		// mark_lease_revocable(parent_inode->inum);
 #endif
 
 		mlfs_get_time(&inode->ctime);
@@ -495,7 +495,7 @@ struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode)
 	inode->nlink = 1;
 
 	// Add permissions (TODO Use separate flag other than leases).
-#if MLFS_LEASE
+#if MLFS_PERMISSIONS
 	inode->perms = mode & ~get_umask();
 	inode->uid = geteuid();
 	if((parent_inode->perms & S_ISGID) != 0) {
