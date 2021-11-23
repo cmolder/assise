@@ -461,7 +461,8 @@ retry:
 		// received invalid response
 		if(ls->errcode) {
 			ls->errcode = 0; // clear error code
-			goto retry;
+			// goto retry;
+			return -1;
 		}
 
 		ls->holders++;

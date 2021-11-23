@@ -141,6 +141,16 @@ int mlfs_posix_open(char *path, int flags, mode_t mode)
 			return -ENOENT;
 		}
 
+		if ((flags & O_WRONLY) || (flags & O_RDWR)) {
+			int result = acquire_lease(dir_inode, LEASE_WRITE, parent_path);
+			if (result == -1)
+				return -EPERM;
+		} else if (flags & O_RDONLY) {
+			int result = acquire_lease(dir_inode, LEASE_READ, parent_path);
+			if (result == -1)
+				return -EPERM;
+		}
+
 		if (inode->itype == T_DIR) {
 			if (!(flags |= (O_RDONLY|O_DIRECTORY))) {
 				return -EACCES;
@@ -424,8 +434,9 @@ int mlfs_posix_close(int fd)
 	}
 
 	mlfs_debug("close file inum %u fd %d\n", f->ip->inum, f->fd);
-
+	mark_lease_revocable(f->ip->inum);
 	return mlfs_file_close(f);
+
 }
 
 int mlfs_posix_mkdir(char *path, mode_t mode)
