@@ -1093,8 +1093,8 @@ int ichown(struct inode *ip, uid_t owner, gid_t group) {
 int ichmod(struct inode *ip, mode_t mode) {
 
 #if MLFS_LEASE
-	panic("ichmod not implemented yet.\n");
-#if 0
+	//panic("ichmod not implemented yet.\n");
+//#if 0
 	if (mode & S_ISUID) {
 		mlfs_info("%s: chmod of setuid bit not supported\n", __func__);
 		return -EINVAL;
@@ -1110,7 +1110,7 @@ int ichmod(struct inode *ip, mode_t mode) {
 	iupdate(ip);
 	pthread_mutex_unlock(&ip->i_mutex);
 	return 0;
-#endif
+//#endif
 #else
 	panic("ichmod not supported without leases.\n");
 #endif

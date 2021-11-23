@@ -885,9 +885,9 @@ int mlfs_posix_fcntl(int fd, int cmd, void *arg)
 
 int mlfs_posix_chmod(const char* path, mode_t mode)
 {
-	panic("chmod not implemented!\n");
+	//panic("chmod not implemented!\n");
 
-#if 0
+//#if 0
 	start_log_tx();
 	struct inode *inode;
 
@@ -899,7 +899,7 @@ int mlfs_posix_chmod(const char* path, mode_t mode)
 	iput(inode);
 	commit_log_tx();
 	return ret;
-#endif
+//#endif
 }
 
 int mlfs_posix_fchmod(int fd, mode_t mode) 

@@ -223,6 +223,7 @@ int shim_do_pwrite64(int fd, void *buf, size_t count, loff_t off, size_t* result
 
 int shim_do_close(int fd, int* result)
 {
+  
   int ret;
 
   if (check_mlfs_fd(fd)) {

@@ -260,6 +260,12 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 	pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
 	pthread_mutex_init(&mlfs_nvm_mutex, &attr);
 
+	#ifdef LIBFS
+	printf("%s\n", "dev-dax init in LibFS");
+	#else
+	printf("%s\n", "dev-dax init in KernFS");
+	#endif
+
 	fd = open(dev_path, O_RDWR);
 	if (fd < 0) {
 		fprintf(stderr, "cannot open dax device %s\n", dev_path);
