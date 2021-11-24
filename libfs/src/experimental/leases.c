@@ -727,10 +727,10 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			struct inode * ip = icache_find(inum);
 			ParsedId check_ids = parse_uid_gid(req_id);
 
-			enum permcheck_type = new_state == LEASE_READ ? PC_READ : PC_WRITE;
+			enum permcheck_type check_type = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
 
-			if (!permission_check(ip, check_ids.uid, check_ids.gid, permcheck_type)) {
-				// Deny read lease based on permissions
+			if (!permission_check(ip, check_ids.uid, check_ids.gid, check_type)) {
+				// Deny lease based on permissions - maybe change this value to something more meaningful
 				return -1;
 			}
 		}
@@ -986,7 +986,8 @@ int discard_leases(int req_id)
 ParsedId parse_uid_gid(int req_id) {
 	int pid = g_peers[req_id]->pid;
 	ParsedId ret;
-
+	int MAX_PID_PATH = 100;
+	int MAX_BUF = 100;
 	char path[MAX_PID_PATH];
     char buf_read[MAX_BUF];
 
