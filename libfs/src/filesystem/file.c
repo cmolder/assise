@@ -424,7 +424,11 @@ struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode)
 	if (inode) {
 		mlfs_debug("mlfs_object_create: already found in dlookup cache %s\n", path);
 #if MLFS_LEASE
-		acquire_lease(inode->inum, LEASE_WRITE, path);
+		int res = acquire_lease(inode->inum, LEASE_WRITE, path);
+		if (res < 0) {
+			mlfs_printf("Denied %d type lease to inode %d (%s)", LEASE_WRITE, inode->inum, path);
+			return NULL;
+		}
 #endif
 		if (inode->itype != type) {
 			inode->itype = type;
@@ -447,7 +451,11 @@ struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode)
 #if MLFS_LEASE
 	char parent_path[MAX_PATH];
 	get_parent_path(path, parent_path, name);
-	acquire_lease(parent_inode->inum, LEASE_WRITE, parent_path);
+	int res = acquire_lease(parent_inode->inum, LEASE_WRITE, parent_path);
+	if (res < 0) {
+		mlfs_printf("Denied %d type lease to parent inode %d (%s)", LEASE_WRITE, parent_inode->inum, parent_path);
+		return NULL;
+	}
 #endif
 
 	ilock(parent_inode);
@@ -463,7 +471,11 @@ struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode)
 
 #if MLFS_LEASE
 		// still need to acquire lease on file (due to ctime update)
-		acquire_lease(inode->inum, LEASE_WRITE, path);
+		int res = acquire_lease(inode->inum, LEASE_WRITE, path);
+		if (res < 0) {
+			mlfs_printf("Denied %d type lease to inode %d (%s) for ctime update", LEASE_WRITE, inode->inum, path);
+			return NULL;
+		}
 
 		// release parent directory; no need to recreate file
 		// mark_lease_revocable(parent_inode->inum);

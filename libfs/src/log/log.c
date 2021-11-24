@@ -1491,7 +1491,16 @@ void signal_callback(struct app_context *msg)
 #if MLFS_LEASE
 		uint32_t inum;
 		sscanf(msg->data, "|%s |%u", cmd_hdr, &inum);
-		report_lease_error(inum);
+		report_lease_error(inum, 1);
+#else
+		panic("invalid code path\n");
+#endif
+	}
+	else if(cmd_hdr[0] == 'd') { // lease denied error
+#if MLFS_LEASE
+		uint32_t inum;
+		sscanf(msg->data, "|%s |%u", cmd_hdr, &inum);
+		report_lease_error(inum, -EACCES);
 #else
 		panic("invalid code path\n");
 #endif

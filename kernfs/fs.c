@@ -2354,22 +2354,25 @@ void signal_callback(struct app_context *msg)
 		sscanf(msg->data, "|%s |%u|%u|%d|%u|%lu", cmd_hdr, &req_id, &inum, &type, &version, &blknr);
 		//mlfs_debug("received remote lease acquire with inum %u | type[%d]\n", inum, type);
 
-		int ret = modify_lease_state(req_id, inum, type, version, blknr);
+		uint8_t mid;
+		int ret = modify_lease_state(req_id, inum, type, version, blknr, &mid);
 
-		// If ret < 0 due to incorrect lease manager
+		// If mid > 0 due to wrong lease manager
 		// (a) For read/write lease RPCs, return 'invalid lease request' to LibFS
 		// (b) For lease revocations, simply forward to correct lease manager
 		if(type != LEASE_FREE) {
 			//mlfs_printf("lease granted to %d\n", g_rpc_socks[msg->sockfd]->peer->id);
 
 			if(ret < 0)
+				rpc_lease_denied(msg->sockfd, g_rpc_socksp[msg->sockfd]->peer->id, inum, msg->id);
+			else if(mid > 0)
 				rpc_lease_invalid(msg->sockfd, g_rpc_socks[msg->sockfd]->peer->id, inum, msg->id);
 			else
 				rpc_send_ack(msg->sockfd, msg->id);
 		}
 		else {
-			if(ret < 0)
-				rpc_lease_change(abs(ret), req_id, inum, type, version, blknr, 0);
+			if(mid > 0)
+				rpc_lease_change(abs(mid), req_id, inum, type, version, blknr, 0);
 		}	
 		mlfs_printf("Leaving signal callback %d\n", ret);
 #else

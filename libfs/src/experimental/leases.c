@@ -288,8 +288,16 @@ int acquire_family_lease(uint32_t inum, int type, char *path)
 			type, inum);
 	// child should always be acquired first, otherwise we deadlock
 	// due to ordering of namei
-	acquire_lease(inum, type, path);
-	acquire_parent_lease(inum, type, path);
+	
+	if (acquire_lease(inum, type, path) < 0) {
+		mlfs_printf("Denied child lease of type %d for inum %u\n", type, inum);
+		return -1;
+	}
+	
+	if(acquire_parent_lease(inum, type, path) < 0) {
+		mlfs_printf("Denied parent lease of type %d for inum %u\n", type, inum);
+		return -1;
+	}
 
 	return 1;
 }
@@ -304,19 +312,22 @@ int acquire_parent_lease(uint32_t inum, int type, char *path)
 	pid = nameiparent(path, name);
 	get_parent_path(path, parent_path, name);
 
-	acquire_lease(pid->inum, type, parent_path);
+	if (acquire_lease(pid->inum, type, parent_path) < 0) {
+		mlfs_printf("Denied parent lease of type %d for inum %u\n", type, inum);
+		return -1;
+	}
 
 	return 1;
 }
 
-int report_lease_error(uint32_t inum)
+int report_lease_error(uint32_t inum, uint16_t errcode)
 {
 	mlfs_lease_t* ls = lcache_find(inum);
 
 	if (!ls)
 		panic("failed to find lease\n");
 
-	ls->errcode = 1;
+	ls->errcode = errcode;
 	return 1;
 }
 
@@ -430,13 +441,7 @@ int acquire_lease(uint32_t inum, int type, char *path)
 {
 	mlfs_printf("LIBFS ID= %d trying to acquire lease of type %d for inum %u\n", g_self_id, type, inum);
 
-        mlfs_printf("Hello world!\n", 5);
-
-	mlfs_printf("Trying to lcache_find inum %d\n", inum);
-
 	mlfs_lease_t* ls = lcache_find(inum);
-
-	mlfs_printf("Got out of lcache_find\n", 5);
 
 	int i_dirty = 0;
 
@@ -459,11 +464,15 @@ retry:
 	if(type > ls->state || ls->hid != g_self_id) {
 		rpc_lease_change(ls->mid, g_self_id, ls->inum, type, 0, 0, 1);
 
-		// received invalid response
-		if(ls->errcode) {
+		// recevied denied response
+		if (ls->errcode == -EACCES) {
 			ls->errcode = 0; // clear error code
-			// goto retry;
-			return -1;
+			return -EACCES;
+		}
+		// received invalid response
+		else if(ls->errcode == 1) {
+			ls->errcode = 0; // clear error code
+			goto retry;
 		}
 
 		ls->holders++;
@@ -597,9 +606,10 @@ void update_remote_ondisk_lease(uint8_t node_id, mlfs_lease_t *ls)
 }
 
 // For lease acquisitions, lease must be locked beforehand.
-int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock)
+int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, uint8_t *mid)
 {
-	panic("Why is Libfs doing this?\n");
+	*mid = 0;
+	//panic("Why is Libfs doing this?\n");
 
 	uint64_t start_tsc;
 
@@ -699,8 +709,9 @@ void shutdown_lease_protocol()
 
 #else
 /* KernFS */
-int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock)
+int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, uint8_t *mid)
 {
+	*mid = -1; // Default value
 	int do_migrate = 0;
 
 	// get lease from cache
@@ -769,7 +780,8 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 #ifdef LEASE_MIGRATION
 	// this KernFS is not the lease manager
 	if (ls->mid != g_self_id) {
-		return -ls->mid;
+		*mid = ls->mid;
+		return 0;
 	}
 #endif
 
@@ -808,7 +820,8 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 #ifdef LEASE_MIGRATION
 		// this KernFS is not the lease manager
 		if (ls->mid != g_self_id) {
-			return -ls->mid;
+			*mid = ls->mid;
+			return 0;
 		}
 #endif
 
@@ -818,7 +831,6 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 		time_t timeout = 1; // timeout interval in seconds
 retry:
 		if(ls->holders == 0) {
-
 			goto acquire_lease;
 		}
 		else {	

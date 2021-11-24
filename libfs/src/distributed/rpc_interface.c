@@ -549,6 +549,34 @@ int rpc_lease_flush(int peer_id, uint32_t inum, int force_digest)
 	return 0;
 }
 
+// lease request denied (usually due to permissions fail)
+// LibFS should notify the application that the POSIX call failed.
+int rpc_lease_denied(int sockfd, int peer_id, uint32_t inum, uint32_t sequn) 
+{
+	mlfs_info("mark lease denied for peer %d inum %u\n", peer_id, inum);
+
+	// peer has already disconnected; exit
+	if(!g_peers[peer_id])
+		return -1;
+
+	//note: for signaling on the fast path, we write directly to the rdma buffer to avoid extra copying
+	struct app_context *msg;
+	int buffer_id = MP_ACQUIRE_BUFFER(sockfd, &msg);
+	uint64_t start_tsc;
+
+	//setting msg->id allows us to insert a hook in the rdma driver to later wait until response received
+	//msg->id = generate_rpc_seqn(g_rpc_socks[sockfd]);
+	msg->id = seqn;
+
+	snprintf(msg->data, RPC_MSG_BYTES, "|denied |%u", inum);
+
+	mlfs_printf("peer send: %s\n", msg->data);
+
+	MP_SEND_MSG_ASYNC(sockfd, buffer_id, 0);
+
+	return 0;
+}
+
 // lease request invalid (usually due to changing lease manangers)
 // LibFS should flush its lease state and retry sending to new lease manager
 int rpc_lease_invalid(int sockfd, int peer_id, uint32_t inum, uint32_t seqn)

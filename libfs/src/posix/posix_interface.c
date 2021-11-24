@@ -121,6 +121,7 @@ int mlfs_posix_open(char *path, int flags, mode_t mode)
 		if (flags & O_DIRECTORY)
 			panic("O_DIRECTORY cannot be set with O_CREAT\n");
 
+		// TODO distinguish between !inode and EACCES errors.
 		inode = mlfs_object_create(path, T_FILE, mode);
 
 		if (!inode) {
@@ -142,20 +143,24 @@ int mlfs_posix_open(char *path, int flags, mode_t mode)
 		}
 
 
-		#if MLFS_PERMISSIONS
-			if ((flags & O_WRONLY) || (flags & O_RDWR)) {
-				int result = acquire_lease(inode->inum, LEASE_WRITE, path);
-				if (result == -1)
-					return -EPERM;
-			} else if (flags & O_RDONLY) {
-				int result = acquire_lease(inode->inum, LEASE_READ, path);
-				if (result == -1)
-					return -EPERM;
+#if MLFS_PERMISSIONS
+		if ((flags & O_WRONLY) || (flags & O_RDWR)) {
+			if((int res = acquire_lease(inode->inum, LEASE_WRITE, path)) < 0) {
+				iunlockput(inode);
+				return res;
 			}
-		#endif
+				
+		} else if (flags & O_RDONLY) {
+			if((int res = acquire_lease(inode->inum, LEASE_READ, path)) < 0) {
+				iunlockput(inode);
+				return res;
+			}			
+		}
+#endif
 
 		if (inode->itype == T_DIR) {
 			if (!(flags |= (O_RDONLY|O_DIRECTORY))) {
+				iunlockput(inode);
 				return -EACCES;
 			}
 		}
@@ -787,7 +792,11 @@ int mlfs_posix_rename(char *oldpath, char *newpath)
 
 		char new_parent_path[DIRSIZ];
 		get_parent_path(newpath, new_parent_path, new_file_name);
-		acquire_lease(new_dir_inode->inum, LEASE_WRITE, new_parent_path);
+		int res = acquire_lease(new_dir_inode->inum, LEASE_WRITE, new_parent_path);
+		if (res < 0) {
+			mlfs_printf("Denied %d type lease to inode %d (%s)", LEASE_WRITE, new_dir_inode->inum, new_parent_path);
+			return -EACCES;
+		}
 #endif
 		// rename across directories
 		dlookup_del(oldpath);

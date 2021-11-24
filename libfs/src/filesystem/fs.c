@@ -1066,7 +1066,7 @@ int itrunc(struct inode *ip, offset_t length)
 int ichown(struct inode *ip, uid_t owner, gid_t group) {
 
 #if MLFS_PERMISSIONS
-	panic("ichown not implemented yet.\n");
+	panic("ichown not implemented yet.\n"); // TODO use custom LEASE_CHOWN type to trigger the right perm check.
 #if 0
 	acquire_lease(inum, type, path);
 
