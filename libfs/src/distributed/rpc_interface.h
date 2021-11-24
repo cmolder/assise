@@ -132,6 +132,7 @@ int rpc_remote_digest_response(int sockfd, int id, int dev, addr_t start_digest,
 int rpc_forward_msg(int sockfd, char* data);
 int rpc_lease_change(int mid, int rid, uint32_t inum, int type, uint32_t version, addr_t blknr, int sync);
 int rpc_lease_response(int sockfd, uint32_t seqn, int replicate);
+int rpc_lease_denied(int sockfd, int peer_id, uint32_t inum, uint32_t seqn);
 int rpc_lease_invalid(int sockfd, int peer_id, uint32_t inum, uint32_t seqn);
 int rpc_lease_flush_response(int sockfd, uint32_t seq_n, uint32_t inum, uint32_t version, addr_t blknr);
 int rpc_lease_flush(int peer_id, uint32_t inum, int force_digest);

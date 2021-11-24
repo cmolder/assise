@@ -120,7 +120,7 @@ int acquire_lease(uint32_t inum, int type, char *path);
 int update_lease_manager(uint32_t inum, uint32_t new_kernfs_id);
 int mark_lease_revocable(uint32_t inum);
 int revoke_lease(int sockfd, uint32_t seq_n, uint32_t inum);
-int report_lease_error(uint32_t inum);
+int report_lease_error(uint32_t inum, uint16_t errcode);
 int clear_lease_checkpoints(int req_id, int version, addr_t log_block);
 int discard_leases();
 void shutdown_lease_protocol();

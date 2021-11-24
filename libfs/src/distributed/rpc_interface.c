@@ -566,7 +566,7 @@ int rpc_lease_denied(int sockfd, int peer_id, uint32_t inum, uint32_t sequn)
 
 	//setting msg->id allows us to insert a hook in the rdma driver to later wait until response received
 	//msg->id = generate_rpc_seqn(g_rpc_socks[sockfd]);
-	msg->id = seqn;
+	msg->id = sequn;
 
 	snprintf(msg->data, RPC_MSG_BYTES, "|denied |%u", inum);
 

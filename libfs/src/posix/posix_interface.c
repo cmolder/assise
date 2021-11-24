@@ -145,13 +145,14 @@ int mlfs_posix_open(char *path, int flags, mode_t mode)
 
 #if MLFS_PERMISSIONS
 		if ((flags & O_WRONLY) || (flags & O_RDWR)) {
-			if((int res = acquire_lease(inode->inum, LEASE_WRITE, path)) < 0) {
+			int res;
+			if((res = acquire_lease(inode->inum, LEASE_WRITE, path)) < 0) {
 				iunlockput(inode);
 				return res;
 			}
 				
 		} else if (flags & O_RDONLY) {
-			if((int res = acquire_lease(inode->inum, LEASE_READ, path)) < 0) {
+			if((res = acquire_lease(inode->inum, LEASE_READ, path)) < 0) {
 				iunlockput(inode);
 				return res;
 			}			

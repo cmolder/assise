@@ -608,7 +608,7 @@ void update_remote_ondisk_lease(uint8_t node_id, mlfs_lease_t *ls)
 // For lease acquisitions, lease must be locked beforehand.
 int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, uint8_t *mid)
 {
-	*mid = 0;
+	*mid = -1; // Default value
 	//panic("Why is Libfs doing this?\n");
 
 	uint64_t start_tsc;
@@ -1011,8 +1011,13 @@ int discard_leases(int req_id)
 		if(item->state == LEASE_WRITE && item->holders > 0) {
 			if(item->hid == req_id) {
 				//rpc_lease_change(item->mid, item->inum, LEASE_FREE, 0, 0, 0);
-				modify_lease_state(req_id, item->inum, LEASE_FREE, 0, 0);
-				mlfs_debug("lease discarded for inum %u\n", item->inum);
+				uint8_t mid;
+				int res = modify_lease_state(req_id, item->inum, LEASE_FREE, 0, 0, &mid);
+				if (res < 0) {
+					mlfs_printf("Error in discarding lease for inum %u\n", item->inum);
+				} else {
+					mlfs_debug("lease discarded for inum %u\n", item->inum);
+				}
 			}
 		}
 
