@@ -750,8 +750,8 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 				sync_inode_from_dinode(ip, &_dinode);
 				
 				if (ip != NULL) {
-					mlfs_printf("Found inode from disk: ino=%d, uid=%d\n, gid=%d\n, perms=%d\n", 
-								 ip->inum, ip->uid, ip->gid, ip->perms);
+					mlfs_printf("Found inode from disk: ino=%d, uid=%d, gid=%d, perms=%d\n", 
+								 ip->inum, _dinode.uid, _dinode.gid, _dinode.perms);
 				} else {
 					panic("inode not found on cache or disk");
 				}
