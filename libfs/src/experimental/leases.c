@@ -757,7 +757,7 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 				}
 				
 			} else {
-				mlfs_printf("Found inode from cache: ino=%d\n, uid=%d, gid=%d, perms=%o\n", 
+				mlfs_printf("Found inode from cache: ino=%d, uid=%d, gid=%d, perms=%o\n", 
 							ip->inum, ip->uid, ip->gid, ip->perms);
 			}
 			
@@ -794,7 +794,7 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 	if(new_state == LEASE_READ) {
 		
 		// Proceed with allocation - except it's a dummy for now
-		return 0;
+		return 1;
 
 		//panic("read path not implemented!\n");
 	}
