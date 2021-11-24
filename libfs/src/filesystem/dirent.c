@@ -301,7 +301,7 @@ static struct inode* namex(char *path, int parent, char *name)
 		strcat(current_path, "/");
 		int res = acquire_lease(ip->inum, LEASE_READ, current_path);
 		if (res < 0) {
-			mlfs_printf("Denied %d type lease to inode %d (%s)", LEASE_READ, inum, current_path);
+			mlfs_printf("Denied %d type lease to inode %d (%s)", LEASE_READ, ip->inum, current_path);
 			return NULL;
 		}
 #endif
@@ -334,7 +334,7 @@ static struct inode* namex(char *path, int parent, char *name)
 		strcat(current_path, name);
 		int res = acquire_lease(ip->inum, LEASE_READ, current_path);
 		if (res < 0) {
-			mlfs_printf("Denied %d type lease to inode %d (%s)", LEASE_READ, inum, current_path);
+			mlfs_printf("Denied %d type lease to inode %d (%s)", LEASE_READ, ip->inum, current_path);
 			return NULL;
 		}
 		strcat(current_path, "/");
