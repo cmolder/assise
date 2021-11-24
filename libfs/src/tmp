@@ -1,0 +1,75 @@
+experimental/leases.c:251:	lease_block = get_lease_block(g_root_dev, inum);
+experimental/leases.c:253:	bh = bh_get_sync_IO(g_root_dev, lease_block, BH_NO_DATA_ALLOC);
+experimental/leases.c:259:	mlfs_io_wait(g_root_dev, 1);
+experimental/leases.c:270:	lease_block = get_lease_block(g_root_dev, ls->inum);
+experimental/leases.c:272:	bh = bh_get_sync_IO(g_root_dev, lease_block, BH_NO_DATA_ALLOC);
+experimental/leases.c:278:	mlfs_io_wait(g_root_dev, 0);
+experimental/leases.c:544:	struct inode* inode = icache_find(g_root_dev, inum);
+experimental/leases.c:589:	addr_t offset = (get_lease_block(g_root_dev, ls->inum) << g_block_size_shift) + sizeof(mlfs_lease_t) * (ls->inum %LPB);
+experimental/leases.c:590:	addr_t src = ((uintptr_t)g_bdev[g_root_dev]->map_base_addr) + offset;
+experimental/leases.c:705:		ls = lcache_alloc_add(g_root_dev, inum);
+experimental/leases.c:981:	struct inode* ip = icache_find(g_root_dev, inum);
+experimental/leases.c:984:		ip = icache_alloc_add(g_root_dev, inum);
+experimental/leases.c:986:		read_ondisk_inode(g_root_dev, inum, &dip);
+log/log.c:656:		bitmap_clear(sb[g_root_dev]->s_inode_bitmap, ip->inum, 1);
+mkfs/mkfs.c:193:	if (dev_id == g_root_dev) {
+mkfs/mkfs.c:298:	if (dev_id != g_root_dev) {
+mkfs/mkfs.c:303:	read_superblock(g_root_dev);
+mkfs/mkfs.c:307:		sb[g_root_dev]->s_dirty_root[i] = RB_ROOT;
+mkfs/mkfs.c:309:	sb[g_root_dev]->last_block_allocated = 0;
+mkfs/mkfs.c:311:	sb[g_root_dev]->n_partition = 1;
+mkfs/mkfs.c:313:	sb[g_root_dev]->num_blocks = disk_sb[g_root_dev].ndatablocks;
+mkfs/m[?1000h[?1049h[22;0;0t[?1h=[?2004h[?12h[?12l[27m[23m[29m[m[H[2J[?25l[1;1H[35m#ifndef _DEVICE_H_
+#define _DEVICE_H_
+
+#include [m[31m"mlfs/kerncompat.h"[m
+[35m#include [m[31m"mlfs/mlfs_user.h"[m
+[35m#include [m[31m"ds/list.h"[m
+[35m#include [m[31m"ds/rbtree.h"[m
+
+[35m#ifdef __cplusplus[m
+[32mextern[m [31m"C"[m {
+[35m#endif[m
+
+[32mstruct[m block_device {[14;9H[32muint8_t[m b_devid ;[15;9H[32munsigned[m [32mlong[m bd_flags; [34m/* flags */[m[17;9H[32muint32_t[m bd_blocksize;[18;9H[32muint32_t[m bd_blocksize_bits;[20;9H[32mint[m bd_nr_free;[21;9Hpthread_mutex_t bd_bh_free_lock;[22;9H[32mstruct[m list_head bd_bh_free;[24;9Hpthread_mutex_t bd_bh_dirty_lock;[25;9H[32mstruct[m list_head bd_bh_dirty;[27;9Hpthread_mutex_t bd_bh_ioqueue_lock;[28;9H[32mstruct[m list_head bd_bh_ioqueue;[30;9Hpthread_mutex_t bd_bh_root_lock;[31;9H[32mstruct[m rb_root bd_bh_root;[33;9Hpthread_t bd_bh_io_thread;[34;9Hpthread_t bd_bh_writeback_thread;[35;9H[32mint[m bd_bh_io_wakeup_fd[[31m2[m];[36;9H[32mint[m bd_bh_writeback_wakeup_fd[[31m2[m];[38;9H[32muint8_t[m *map_base_addr;[39;9H[32mstruct[m storage_operations *storage_engine;
+};
+
+
+[35m#ifdef __cplusplus[m
+}[45;149H38,2-9[8CTop[38;9H[?25h[?25l[?25h[45;1H[?2004l[?1l>[?1049l[23;0;0tVim: Caught deadly signal HUP
+Vim: Finished.
+[45;1H[23;2t[23;1t= get_inode_block(g_root_dev, inum);
+filesystem/fs.c:553:	bh = bh_get_sync_IO(g_root_dev, inode_block, BH_NO_DATA_ALLOC);
+filesystem/fs.c:559:	mlfs_io_wait(g_root_dev, 1);
+filesystem/fs.c:569:	invalidate_bh_cache(g_root_dev);
+filesystem/fs.c:675:	bitmap_set(sb[g_root_dev]->s_inode_bitmap, inum, 1);
+filesystem/fs.c:695:		inum = find_next_zero_bit(sb[g_root_dev]->s_inode_bitmap,
+filesystem/fs.c:696:				sb[g_root_dev]->ondisk->ninodes, 1);
+filesystem/fs.c:698:		inum = find_next_zero_bit(sb[g_root_dev]->s_inode_bitmap,
+filesystem/fs.c:699:				sb[g_root_dev]->ondisk->ninodes, (g_log_dev-4)*NINODES/4);
+filesystem/fs.c:702:	mlfs_debug("finding empty inode number in slice(start:%u size:%u)\n", (g_self_id)*NINODES/g_n_max_libfs, sb[g_root_dev]->ondisk->ninodes);
+filesystem/fs.c:703:	inum = find_next_zero_bit(sb[g_root_dev]->s_inode_bitmap,
+filesystem/fs.c:704:				sb[g_root_dev]->ondisk->ninodes, (g_self_id)*NINODES/g_n_max_libfs);
+filesystem/fs.c:880:		handle.dev = g_root_dev;
+filesystem/fs.c:885:		bmap_req->dev = g_root_dev;
+filesystem/fs.c:892:		handle.dev = g_root_dev;
+filesystem/fs.c:916:		handle.dev = g_root_dev;
+filesystem/fs.c:922:			bmap_req->dev = g_root_dev;
+filesystem/fs.c:927:						g_root_dev, offset, map.m_pblk);
+filesystem/fs.c:931:						g_root_dev, offset, map.m_pblk);
+filesystem/fs.c:1123:	st->st_dev = g_root_dev;
+filesystem/fs.c:1450:	if (bmap_req.dev == g_root_dev) {
+filesystem/fs.c:1455:					(uintptr_t)g_bdev[g_root_dev]->map_base_addr;
+filesystem/fs.c:1547:					(uintptr_t)(g_bdev[g_root_dev]->map_base_addr) + off - off_aligned;
+filesystem/fs.c:1823:	if (bmap_req.dev == g_root_dev) {
+filesystem/fs.c:1845:						g_bdev[g_root_dev]->map_base_addr);
+filesystem/fs.c:1856:									g_bdev[g_root_dev]->map_base_addr);
+posix/posix_interface.c:549:	if (ret == -EIO || bmap_req.dev != g_root_dev) {
+posix/posix_interface.c:561:		if (ret == -EIO || bmap_req.dev != g_root_dev) {
+posix/posix_interface.c:573:	return (void *) ((blk_base << g_block_size_shift) + g_bdev[g_root_dev]->map_base_addr);
+storage/storage.h:43:#define g_root_dev	1 //dev-dax shared area
+io/block_io.c:59:		if (i == g_root_dev) {
+io/block_io.c:406:	assert(dev == g_log_dev || dev == g_root_dev);
+io/block_io.c:419:	assert(dev == g_log_dev || dev == g_root_dev);
+global/global.h:115:// extern uint	g_root_dev; /* old ROOTDEV */
+global/global.c:5:uint	g_root_dev		= 1;

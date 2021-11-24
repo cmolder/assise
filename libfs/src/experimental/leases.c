@@ -6,10 +6,10 @@
 #include "mlfs/mlfs_interface.h"
 #include "filesystem/stat.h"
 #include "concurrency/thread.h"
+#include "global/perms.h"
 
 #ifdef KERNFS
 #include "fs.h"
-#include "filesystem/perms.h"
 #else
 #include "filesystem/fs.h"
 #include "log/log.h"
@@ -291,15 +291,15 @@ int acquire_family_lease(uint32_t inum, int type, char *path)
 	
 	if (acquire_lease(inum, type, path) < 0) {
 		mlfs_printf("Denied child lease of type %d for inum %u\n", type, inum);
-		return -1;
+		return -EACCES;
 	}
 	
 	if(acquire_parent_lease(inum, type, path) < 0) {
 		mlfs_printf("Denied parent lease of type %d for inum %u\n", type, inum);
-		return -1;
+		return -EACCES;
 	}
 
-	return 1;
+	return 0;
 }
 
 int acquire_parent_lease(uint32_t inum, int type, char *path)
