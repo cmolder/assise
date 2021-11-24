@@ -472,7 +472,8 @@ retry:
 		// received invalid response
 		else if(ls->errcode == 1) {
 			ls->errcode = 0; // clear error code
-			goto retry;
+			// goto retry;
+			return -EACCES;
 		}
 
 		ls->holders++;
