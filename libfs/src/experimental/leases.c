@@ -461,7 +461,8 @@ retry:
 		// received invalid response
 		if(ls->errcode) {
 			ls->errcode = 0; // clear error code
-			goto retry;
+			// goto retry;
+			return -1;
 		}
 
 		ls->holders++;
@@ -597,6 +598,8 @@ void update_remote_ondisk_lease(uint8_t node_id, mlfs_lease_t *ls)
 // For lease acquisitions, lease must be locked beforehand.
 int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock)
 {
+	panic("Why is Libfs doing this?\n");
+
 	uint64_t start_tsc;
 
 	// get lease from cache
@@ -610,7 +613,8 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			inum, ls->state, new_state, req_id, ls->hid, ls->holders);
 
 	if(new_state == LEASE_READ) {
-		panic("read path not implemented!\n");
+		return 1;
+		//panic("read path not implemented!\n");
 	}
 	else if(new_state == LEASE_FREE) {
 		ls->lversion = version;
@@ -717,6 +721,34 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			g_perf_stats.lease_rpc_remote_nr++;
 	}
 
+	#if MLFS_PERMISSIONS
+		// TOCTOU bug if we check here? idk man
+		if (new_state != LEASE_FREE) {
+			mlfs_printf("Checking permissions for inum %d\n", inum);
+			struct inode * ip = icache_find(inum);
+			if (!ip) { 
+				mlfs_printf("Inode %d  not in cache\n", inum);
+				ip = iget(inum);
+				struct dinode _dinode;
+				read_ondisk_inode(inum, &_dinode);
+				
+				mlfs_printf("Found inode: %d\n", ip==NULL);
+				mlfs_printf("Inode uid: %d\n", _dinode.uid);
+			}
+			mlfs_printf("Found inode from cache %d\n", inum);
+			ParsedId check_ids = parse_uid_gid(req_id);
+			mlfs_printf("Parsed ids: %d %d\n", check_ids.uid, check_ids.gid);
+
+			enum permcheck_type check_type = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
+
+			if (!permission_check(ip, check_ids.uid, check_ids.gid, check_type)) {
+				mlfs_printf("******Denying lease for reqid %d\n", req_id);
+				// Deny lease based on permissions - maybe change this value to something more meaningful
+				//return 5;
+			}
+		}
+	#endif
+
 #ifdef LEASE_MIGRATION
 	// this KernFS is not the lease manager
 	if (ls->mid != g_self_id) {
@@ -728,7 +760,11 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			inum, ls->state, new_state, req_id, ls->hid, ls->holders);
 
 	if(new_state == LEASE_READ) {
-		panic("read path not implemented!\n");
+		
+		// Proceed with allocation - except it's a dummy for now
+		return 1;
+
+		//panic("read path not implemented!\n");
 	}
 	else if(new_state == LEASE_FREE) {
 		// if previous state is write, update log params
@@ -958,6 +994,42 @@ int discard_leases(int req_id)
 	//pthread_spin_unlock(&lcache_spinlock);
 //#endif
 	return 0;
+}
+
+ParsedId parse_uid_gid(int req_id) {
+	int pid = g_peers[req_id]->pid;
+	ParsedId ret;
+	int MAX_PID_PATH = 100;
+	int MAX_BUF = 100;
+	char path[MAX_PID_PATH];
+    char buf_read[MAX_BUF];
+
+    snprintf(path, MAX_PID_PATH, "/proc/%d/status", pid);
+    FILE * status = fopen(path, "r");
+
+	int ruid;
+    int euid;
+    int suid;
+    int fuid;
+
+    int rgid;
+    int egid;
+    int sgid;
+    int fgid;
+
+
+    // UID is line 8, GUID is line 9
+    int items = 0;
+    char * end;
+    while (items < 1 && end != NULL) {
+        end = fgets(buf_read, MAX_BUF, status);
+        items = sscanf(buf_read, "Uid: %d %d %d %d", &ruid, &euid, &suid, &fuid);
+    }
+    fscanf(status, "Gid: %d %d %d %d\n", &rgid, &egid, &sgid, &fgid);
+
+	ret.uid = euid;
+	ret.gid = egid;
+	return ret;
 }
 
 int update_lease_manager(uint32_t inum, uint32_t new_kernfs_id)

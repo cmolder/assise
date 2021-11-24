@@ -1,6 +1,6 @@
 CC = gcc -std=gnu99
 #CC = c99
-EXE = iotest file_basic small_io falloc_test rsync_test lock_test lock_perf rbtree_test dir_test many_files_test fork_io readdir_test statdir_test append_test fwrite_fread slave_test partial_update_test ftrunc_test mkdir_test lease_test maildir_test mkdir_user
+EXE = iotest file_basic chmod_basic small_io falloc_test rsync_test lock_test lock_perf rbtree_test dir_test many_files_test fork_io readdir_test statdir_test append_test fwrite_fread slave_test partial_update_test ftrunc_test mkdir_test lease_test maildir_test mkdir_user
 #$(info $(EXE))
 
 CUR_DIR = $(shell pwd)
@@ -37,6 +37,9 @@ time_stat.o: time_stat.c
 	$(CC) time_stat.c -c -o time_stat.o -D_BSD_SOURCE
 
 file_basic: file_basic.c
+	$(CC) -g -o $@ $^ -I$(INCLUDES) -L$(LIBFS_DIR) -lmlfs -L$(RDMA_CORE_DIR) -L$(RDMA_DIR) $(LDFLAGS)
+
+chmod_basic: chmod_basic.c
 	$(CC) -g -o $@ $^ -I$(INCLUDES) -L$(LIBFS_DIR) -lmlfs -L$(RDMA_CORE_DIR) -L$(RDMA_DIR) $(LDFLAGS)
 
 small_io: small_io.c

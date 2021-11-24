@@ -299,7 +299,7 @@ static struct inode* namex(char *path, int parent, char *name)
 
 #if MLFS_LEASE
 		strcat(current_path, "/");
-		//acquire_lease(ip->inum, LEASE_READ, current_path);
+		acquire_lease(ip->inum, LEASE_READ, current_path);
 #endif
 	}
 	else
@@ -328,7 +328,7 @@ static struct inode* namex(char *path, int parent, char *name)
 		ip = next;
 #if MLFS_LEASE
 		strcat(current_path, name);
-		//acquire_lease(ip->inum, LEASE_READ, current_path);
+		acquire_lease(ip->inum, LEASE_READ, current_path);
 		strcat(current_path, "/");
 #endif
 	}

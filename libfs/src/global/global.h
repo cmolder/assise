@@ -87,6 +87,7 @@ void mlfs_setup(void);
 #define MLFS_PASSIVE defined(DISTRIBUTED) && !defined(ACTIVE)
 #define MLFS_MASTER defined(DISTRIBUTED) && defined(MASTER)
 #define MLFS_LEASE defined(DISTRIBUTED) && (defined(MASTER) || defined(KERNFS)) && defined(USE_LEASE)
+#define MLFS_PERMISSIONS defined(PERMISSIONS)
 #define MLFS_REPLICA defined(DISTRIBUTED) && !defined(MASTER)
 #define MLFS_HOT defined(DISTRIBUTED) && defined(HOT) && !defined(MASTER)
 #define MLFS_COLD defined(DISTRIBUTED) && !defined(HOT) && !defined(MASTER)

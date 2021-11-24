@@ -1065,7 +1065,7 @@ int itrunc(struct inode *ip, offset_t length)
 /* Call in transaction */
 int ichown(struct inode *ip, uid_t owner, gid_t group) {
 
-#if MLFS_LEASE
+#if MLFS_PERMISSIONS
 	panic("ichown not implemented yet.\n");
 #if 0
 	acquire_lease(inum, type, path);
@@ -1085,16 +1085,16 @@ int ichown(struct inode *ip, uid_t owner, gid_t group) {
 	return 0;
 #endif
 #else
-	panic("ichown not supported without leases.\n");
+	panic("ichown not supported.\n");
 #endif
 }
 
 /* Call in transaction */
 int ichmod(struct inode *ip, mode_t mode) {
 
-#if MLFS_LEASE
-	panic("ichmod not implemented yet.\n");
-#if 0
+#if MLFS_PERMISSIONS
+	//panic("ichmod not implemented yet.\n");
+//#if 0
 	if (mode & S_ISUID) {
 		mlfs_info("%s: chmod of setuid bit not supported\n", __func__);
 		return -EINVAL;
@@ -1110,9 +1110,9 @@ int ichmod(struct inode *ip, mode_t mode) {
 	iupdate(ip);
 	pthread_mutex_unlock(&ip->i_mutex);
 	return 0;
-#endif
+//#endif
 #else
-	panic("ichmod not supported without leases.\n");
+	panic("ichmod not supported.\n");
 #endif
 }
 
