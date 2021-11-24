@@ -6,10 +6,10 @@
 #include "mlfs/mlfs_interface.h"
 #include "filesystem/stat.h"
 #include "concurrency/thread.h"
+#include "global/perms.h"
 
 #ifdef KERNFS
 #include "fs.h"
-#include "filesystem/perms.h"
 #else
 #include "filesystem/fs.h"
 #include "log/log.h"
@@ -291,15 +291,15 @@ int acquire_family_lease(uint32_t inum, int type, char *path)
 	
 	if (acquire_lease(inum, type, path) < 0) {
 		mlfs_printf("Denied child lease of type %d for inum %u\n", type, inum);
-		return -1;
+		return -EACCES;
 	}
 	
 	if(acquire_parent_lease(inum, type, path) < 0) {
 		mlfs_printf("Denied parent lease of type %d for inum %u\n", type, inum);
-		return -1;
+		return -EACCES;
 	}
 
-	return 1;
+	return 0;
 }
 
 int acquire_parent_lease(uint32_t inum, int type, char *path)
@@ -314,10 +314,10 @@ int acquire_parent_lease(uint32_t inum, int type, char *path)
 
 	if (acquire_lease(pid->inum, type, parent_path) < 0) {
 		mlfs_printf("Denied parent lease of type %d for inum %u\n", type, inum);
-		return -1;
+		return -EACCES;
 	}
 
-	return 1;
+	return 0;
 }
 
 int report_lease_error(uint32_t inum, uint16_t errcode)
@@ -328,7 +328,7 @@ int report_lease_error(uint32_t inum, uint16_t errcode)
 		panic("failed to find lease\n");
 
 	ls->errcode = errcode;
-	return 1;
+	return 0;
 }
 
 // invoked by KernFS upcall
@@ -764,9 +764,9 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			gid_t rgid;
 			if (parse_uid_gid(req_id, &ruid, &rgid) != 0) {
 				mlfs_printf("Could not find uid, gid for libfs ID=%d", req_id);
-				return -EACCES; // TODO fix clash
+				return -EACCES;
 			}		
-			mlfs_printf("LibFS ID=%d uid=%d, gid=%d\n", req_id, ruid, rgid);
+			mlfs_printf("LibFS ID=%d has uid=%d, gid=%d\n", req_id, ruid, rgid);
 
 			// Do permission check
 			enum permcheck_type check = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
@@ -791,7 +791,7 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 	if(new_state == LEASE_READ) {
 		
 		// Proceed with allocation - except it's a dummy for now
-		return 1;
+		return 0;
 
 		//panic("read path not implemented!\n");
 	}
@@ -810,7 +810,7 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 		else
 			panic("lease surrender failed. Lease has no current owners!\n");
 		//ls->holders--;
-		return 1;
+		return 0;
 	}
 
 	else {
