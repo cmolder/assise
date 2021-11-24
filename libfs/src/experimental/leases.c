@@ -776,6 +776,7 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 				mlfs_printf("Access denied for reqid %d on inode %d:", req_id, ip->inum);
 				return -EACCES;
 			}
+			mlfs_printf("Access allowed for reqid %d on inode %d:", req_id, ip->inum);
 		}
 	#endif
 
