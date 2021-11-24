@@ -68,11 +68,6 @@ typedef struct SharedTable {
 	struct SharedGuts *guts;  // actually points into the shared memory segment
 } SharedTable;
 
-typedef struct ParsedId {
-	int uid;
-	int gid;
-} ParsedId;
-
 extern SharedTable *lease_table;
 
 static SharedGuts *SharedGuts_create(void *base, size_t size);
@@ -83,47 +78,6 @@ SharedTable *SharedTable_subscribe(const char *name);
 void SharedTable_unsubscribe(SharedTable *t);
 static void *SharedTable_malloc(SharedTable *t, size_t size);
 static void SharedTable_free(SharedTable *t, void *p);
-
-
-
-#if MLFS_PERMISSIONS
-
-enum permcheck_type {
-	PC_READ,
-	PC_WRITE,
-	PC_EXECUTE
-};
-
-static int permission_check(struct inode *inode, uid_t check_uid, gid_t check_gid, enum permcheck_type perm)
-{
-  if (check_uid == 0 && perm != PC_EXECUTE) {
-    return 1;
-  }
-  mlfs_debug("ckuid %d ckgid %d iuid %d igid %d imode %o\n", check_uid, check_gid, inode->uid, inode->gid, inode->perms);
-  if (inode->uid == check_uid) {
-    switch (perm) {
-    case PC_READ: return (inode->perms & S_IRUSR) != 0;
-    case PC_WRITE: return (inode->perms & S_IWUSR) != 0;
-    // case PC_EXECUTE: return (inode->perms & S_IXUSR) != 0;
-    }
-//   } else if (should_group_bits_apply(check_gid, inode->gid)) {
-  } else if (check_gid == inode->gid) {
-	switch (perm) {
-    case PC_READ: return (inode->perms & S_IRGRP) != 0;
-    case PC_WRITE: return (inode->perms & S_IWGRP) != 0;
-    // case PC_EXECUTE: return (inode->perms & S_IXGRP) != 0;
-    }
-  } else {
-    switch (perm) {
-    case PC_READ: return (inode->perms & S_IROTH) != 0;
-    case PC_WRITE: return (inode->perms & S_IWOTH) != 0;
-    // case PC_EXECUTE: return (inode->perms & S_IXOTH) != 0;
-    }
-  }
-  return 0;
-}
-
-#endif
 
 #if 0
 static inline int lease_downgrade(int request, int current)
@@ -170,7 +124,6 @@ int report_lease_error(uint32_t inum);
 int clear_lease_checkpoints(int req_id, int version, addr_t log_block);
 int discard_leases();
 void shutdown_lease_protocol();
-ParsedId parse_uid_gid(int req_id);
 
 //void wait_on_replicating();
 

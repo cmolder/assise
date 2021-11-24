@@ -9,6 +9,7 @@
 
 #ifdef KERNFS
 #include "fs.h"
+#include "filesystem/perms.h"
 #else
 #include "filesystem/fs.h"
 #include "log/log.h"
@@ -697,6 +698,7 @@ void shutdown_lease_protocol()
 }
 
 #else
+/* KernFS */
 int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock)
 {
 	int do_migrate = 0;
@@ -724,27 +726,37 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 	#if MLFS_PERMISSIONS
 		// TOCTOU bug if we check here? idk man
 		if (new_state != LEASE_FREE) {
+
+			// Get target inode uid / gid / perms
 			mlfs_printf("Checking permissions for inum %d\n", inum);
 			struct inode * ip = icache_find(inum);
 			if (!ip) { 
 				mlfs_printf("Inode %d  not in cache\n", inum);
 				ip = iget(inum);
-				struct dinode _dinode;
+				struct dinode _dinode; // TODO is this necessary? Shouldn't the inode have the info we need?
 				read_ondisk_inode(inum, &_dinode);
 				
-				mlfs_printf("Found inode: %d\n", ip==NULL);
-				mlfs_printf("Inode uid: %d\n", _dinode.uid);
+				mlfs_printf("Found inode from disk: %d\n ino=%d, uid=%d\n, perms=%d\n", 
+							ip==NULL, _dinode.inum, _dinode.uid, _dinode.perms);
+			} else {
+				mlfs_printf("Found inode from cache: ino=%d\n, uid=%d, gid=%d, perms=%o\n", 
+							ip->inum, ip->uid, ip->gid, ip->perms);
 			}
-			mlfs_printf("Found inode from cache %d\n", inum);
-			ParsedId check_ids = parse_uid_gid(req_id);
-			mlfs_printf("Parsed ids: %d %d\n", check_ids.uid, check_ids.gid);
+			
+			// Get requesting process uid / gid
+			uid_t ruid;
+			gid_t rgid;
+			if (parse_uid_gid(req_id, &ruid, &rgid) != 0) {
+				mlfs_printf("Could not find uid, gid for libfs ID=%d", req_id);
+				return -EACCES; // TODO fix clash
+			}		
+			mlfs_printf("LibFS ID=%d uid=%d, gid=%d\n", req_id, ruid, rgid);
 
+			// Do permission check
 			enum permcheck_type check_type = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
-
-			if (!permission_check(ip, check_ids.uid, check_ids.gid, check_type)) {
-				mlfs_printf("******Denying lease for reqid %d\n", req_id);
-				// Deny lease based on permissions - maybe change this value to something more meaningful
-				//return 5;
+			if (!permission_check(ip, ruid, rgid, check_type)) {
+				mlfs_printf("Access denied for reqid %d on inode %d:", req_id, ip->inum);
+				return -EACCES;
 			}
 		}
 	#endif
@@ -996,41 +1008,7 @@ int discard_leases(int req_id)
 	return 0;
 }
 
-ParsedId parse_uid_gid(int req_id) {
-	int pid = g_peers[req_id]->pid;
-	ParsedId ret;
-	int MAX_PID_PATH = 100;
-	int MAX_BUF = 100;
-	char path[MAX_PID_PATH];
-    char buf_read[MAX_BUF];
 
-    snprintf(path, MAX_PID_PATH, "/proc/%d/status", pid);
-    FILE * status = fopen(path, "r");
-
-	int ruid;
-    int euid;
-    int suid;
-    int fuid;
-
-    int rgid;
-    int egid;
-    int sgid;
-    int fgid;
-
-
-    // UID is line 8, GUID is line 9
-    int items = 0;
-    char * end;
-    while (items < 1 && end != NULL) {
-        end = fgets(buf_read, MAX_BUF, status);
-        items = sscanf(buf_read, "Uid: %d %d %d %d", &ruid, &euid, &suid, &fuid);
-    }
-    fscanf(status, "Gid: %d %d %d %d\n", &rgid, &egid, &sgid, &fgid);
-
-	ret.uid = euid;
-	ret.gid = egid;
-	return ret;
-}
 
 int update_lease_manager(uint32_t inum, uint32_t new_kernfs_id)
 {
