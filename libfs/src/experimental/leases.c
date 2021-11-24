@@ -746,6 +746,8 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 				ip = iget(inum);
 				struct dinode _dinode; // TODO is this necessary? Shouldn't the inode have the info we need?
 				read_ondisk_inode(inum, &_dinode);
+				ip->_dinode = (struct dinode *)inode;
+				sync_inode_from_dinode(ip, &dip);
 				
 				if (ip != NULL) {
 					mlfs_printf("Found inode from disk: ino=%d, uid=%d\n, gid=%d\n, perms=%d\n", 
