@@ -724,8 +724,20 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 	#if MLFS_PERMISSIONS
 		// TOCTOU bug if we check here? idk man
 		if (new_state != LEASE_FREE) {
+			mlfs_printf("Checking permissions for inum %d\n", inum);
 			struct inode * ip = icache_find(inum);
+			if (!ip) { 
+				mlfs_printf("Inode %d  not in cache\n", inum);
+				ip = iget(inum);
+				struct dinode _dinode;
+				read_ondisk_inode(inum, &_dinode);
+				
+				mlfs_printf("Found inode: %d\n", ip==NULL);
+				mlfs_printf("Inode uid: %d\n", _dinode.uid);
+			}
+			mlfs_printf("Found inode from cache %d\n", inum);
 			ParsedId check_ids = parse_uid_gid(req_id);
+			mlfs_printf("Parsed ids: %d %d\n", check_ids.uid, check_ids.gid);
 
 			enum permcheck_type check_type = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
 
