@@ -730,8 +730,9 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			enum permcheck_type check_type = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
 
 			if (!permission_check(ip, check_ids.uid, check_ids.gid, check_type)) {
+				mlfs_printf("******Denying lease for reqid %d\n", req_id);
 				// Deny lease based on permissions - maybe change this value to something more meaningful
-				return -1;
+				//return 5;
 			}
 		}
 	#endif

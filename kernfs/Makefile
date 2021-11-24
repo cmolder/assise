@@ -41,9 +41,9 @@ INCLUDES  := $(addprefix -I, . $(NVML_DIR)/include $(CUCKOO_DIR) $(CUCKOO_FILTER
 LD_FLAGS = -lpthread -laio -lstdc++ -lm -L$(NVML_DIR)/nondebug/ -Wl,-rpath=$(abspath $(NVML_DIR)/nondebug) -lpmem -lrt -L$(RDMA_DIR) -Wl,-rpath=$(abspath $(RDMA_DIR)) -L$(RDMA_CORE_DIR_LIB) -Wl,-rpath=$(abspath $(RDMA_CORE_DIR_LIB)) -lrdma -lrdmacm -libverbs -ldl -luuid -lnuma -L$(SPDK_ROOT_DIR) -Wl,-rpath=$(abspath $(SPDK_ROOT_DIR))
 
 #MLFS_FLAGS = -DUSE_SLAB -DMLFS_INFO -DKERNFS
-MLFS_FLAGS = -DKERNFS
+#MLFS_FLAGS = -DKERNFS
 #MLFS_FLAGS = -DKERNFS -DMLFS_INFO
-#MLFS_FLAGS = -DKERNFS -DMLFS_DEBUG
+MLFS_FLAGS = -DKERNFS -DMLFS_DEBUG
 MLFS_FLAGS += -DDISTRIBUTED
 MLFS_FLAGS += -DMASTER
 #MLFS_FLAGS += -DENABLE_MEMCPY_OFFLOAD

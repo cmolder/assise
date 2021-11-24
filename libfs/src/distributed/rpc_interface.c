@@ -440,10 +440,14 @@ int rpc_lease_change(int mid, int rid, uint32_t inum, int type, uint32_t version
 	//rdma-send completion
 	MP_SEND_MSG_ASYNC(sockfd, buffer_id, sync);
 
+	mlfs_printf("\x1b[33m [L] Sent lease message (%s) \x1b[0m\n", sync?"SYNC":"ASYNC");
+
 	//spin till we receive a response with the same sequence number
 	//this is part of the messaging protocol that the remote peer should adhere to
-	if(sync)
+	if(sync) {
 		MP_AWAIT_RESPONSE(sockfd, msg->id);
+		mlfs_printf("\x1b[33m [L] Got response (%s) \x1b[0m\n", sync?"SYNC":"ASYNC");
+	}
 
 #ifdef LIBFS
 	if (enable_perf_stats)

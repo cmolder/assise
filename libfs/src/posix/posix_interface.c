@@ -49,11 +49,11 @@ static int isdirempty(struct inode *dp)
 }
 #endif
 
-enum permcheck_type {
-	PC_READ,
-	PC_WRITE,
-	PC_EXECUTE
-};
+//enum permcheck_type {
+//	PC_READ,
+//	PC_WRITE,
+//	PC_EXECUTE
+//};
 
 int posix_init = 0;
 
