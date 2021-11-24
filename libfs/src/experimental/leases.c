@@ -736,8 +736,13 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 				struct dinode _dinode; // TODO is this necessary? Shouldn't the inode have the info we need?
 				read_ondisk_inode(inum, &_dinode);
 				
-				mlfs_printf("Found inode from disk: %d\n ino=%d, uid=%d\n, perms=%d\n", 
-							ip==NULL, _dinode.inum, _dinode.uid, _dinode.perms);
+				if (ip != NULL) {
+					mlfs_printf("Found inode from disk: ino=%d, uid=%d\n, gid=%d\n, perms=%d\n", 
+								 ip->inum, ip->uid, ip->gid, ip->perms);
+				} else {
+					panic("inode not found on cache or disk");
+				}
+				
 			} else {
 				mlfs_printf("Found inode from cache: ino=%d\n, uid=%d, gid=%d, perms=%o\n", 
 							ip->inum, ip->uid, ip->gid, ip->perms);
@@ -753,8 +758,8 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			mlfs_printf("LibFS ID=%d uid=%d, gid=%d\n", req_id, ruid, rgid);
 
 			// Do permission check
-			enum permcheck_type check_type = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
-			if (!permission_check(ip, ruid, rgid, check_type)) {
+			enum permcheck_type check = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
+			if (!permission_check(ip, ruid, rgid, check)) {
 				mlfs_printf("Access denied for reqid %d on inode %d:", req_id, ip->inum);
 				return -EACCES;
 			}
