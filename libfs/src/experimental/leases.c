@@ -598,6 +598,8 @@ void update_remote_ondisk_lease(uint8_t node_id, mlfs_lease_t *ls)
 // For lease acquisitions, lease must be locked beforehand.
 int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock)
 {
+	panic("Why is Libfs doing this?\n");
+
 	uint64_t start_tsc;
 
 	// get lease from cache
@@ -719,6 +721,21 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			g_perf_stats.lease_rpc_remote_nr++;
 	}
 
+	#if MLFS_PERMISSIONS
+		// TOCTOU bug if we check here? idk man
+		if (new_state != LEASE_FREE) {
+			struct inode * ip = icache_find(inum);
+			ParsedId check_ids = parse_uid_gid(req_id);
+
+			enum permcheck_type = new_state == LEASE_READ ? PC_READ : PC_WRITE;
+
+			if (!permission_check(ip, check_ids.uid, check_ids.gid, permcheck_type)) {
+				// Deny read lease based on permissions
+				return -1;
+			}
+		}
+	#endif
+
 #ifdef LEASE_MIGRATION
 	// this KernFS is not the lease manager
 	if (ls->mid != g_self_id) {
@@ -730,7 +747,10 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			inum, ls->state, new_state, req_id, ls->hid, ls->holders);
 
 	if(new_state == LEASE_READ) {
+		
+		// Proceed with allocation - except it's a dummy for now
 		return 1;
+
 		//panic("read path not implemented!\n");
 	}
 	else if(new_state == LEASE_FREE) {
@@ -961,6 +981,41 @@ int discard_leases(int req_id)
 	//pthread_spin_unlock(&lcache_spinlock);
 //#endif
 	return 0;
+}
+
+ParsedId parse_uid_gid(int req_id) {
+	int pid = g_peers[req_id]->pid;
+	ParsedId ret;
+
+	char path[MAX_PID_PATH];
+    char buf_read[MAX_BUF];
+
+    snprintf(path, MAX_PID_PATH, "/proc/%d/status", pid);
+    FILE * status = fopen(path, "r");
+
+	int ruid;
+    int euid;
+    int suid;
+    int fuid;
+
+    int rgid;
+    int egid;
+    int sgid;
+    int fgid;
+
+
+    // UID is line 8, GUID is line 9
+    int items = 0;
+    char * end;
+    while (items < 1 && end != NULL) {
+        end = fgets(buf_read, MAX_BUF, status);
+        items = sscanf(buf_read, "Uid: %d %d %d %d", &ruid, &euid, &suid, &fuid);
+    }
+    fscanf(status, "Gid: %d %d %d %d\n", &rgid, &egid, &sgid, &fgid);
+
+	ret.uid = euid;
+	ret.gid = egid;
+	return ret;
 }
 
 int update_lease_manager(uint32_t inum, uint32_t new_kernfs_id)
