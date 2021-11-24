@@ -1,6 +1,7 @@
 #ifndef _FILE_H_
 #define _FILE_H_
 
+#include <sys/types.h>
 #include "filesystem/stat.h"
 #include "filesystem/shared.h"
 #include "filesystem/fs.h"
@@ -48,4 +49,13 @@ int mlfs_file_read_offset(struct file *f, struct mlfs_reply *reply,
 		size_t n, offset_t off);
 int mlfs_file_write(struct file *f, uint8_t *buf, offset_t offset, size_t n);
 int mlfs_file_fallocate(struct file *f, size_t len, offset_t offset);
+
+#if MLFS_PERMISSIONS
+enum permcheck_type {PC_READ, PC_WRITE};
+int get_secondary_groups(uid_t uid, gid_t **buf);
+int should_group_bits_apply(uid_t uid, gid_t primary_gid, gid_t inode_gid);
+int permission_check(struct inode *inode, uid_t check_uid, gid_t check_gid, enum permcheck_type perm);
+int parse_uid_gid(int req_id, uid_t *uid, gid_t *gid);
+#endif
+
 #endif
