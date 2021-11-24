@@ -72,7 +72,8 @@ int permission_check(struct inode *inode, uid_t check_uid, gid_t check_gid, enum
 			case PC_WRITE: return (inode->perms & S_IWUSR) != 0;
 			case PC_EXECUTE: return (inode->perms & S_IXUSR) != 0;
 		}
-  	} else if (should_group_bits_apply(check_uid, check_gid, inode->gid)) {
+  	// } else if (should_group_bits_apply(check_uid, check_gid, inode->gid)) {
+  	} else if (check_gid == inode->gid)) {
     	switch (perm) {
 			case PC_READ: return (inode->perms & S_IRGRP) != 0;
 			case PC_WRITE: return (inode->perms & S_IWGRP) != 0;
