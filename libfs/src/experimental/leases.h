@@ -26,7 +26,7 @@ enum lease_error_type {
 	LEASE_NOERR = 0, // No error
 	LEASE_DENIED,
 	LEASE_INVALID
-}
+};
 
 typedef struct lease_info {
 	int dev;
