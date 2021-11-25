@@ -21,12 +21,19 @@
 
 //#include "filesystem/fs.h"
 
+// Indicates whther lease RPC returned an error.
+enum lease_error_type {
+	LEASE_NOERR = 0, // No error
+	LEASE_DENIED,
+	LEASE_INVALID
+}
+
 typedef struct lease_info {
 	int dev;
 	uint32_t inum;
 	uint8_t state;
 
-	uint16_t errcode; //LibFS only; indicates whether lease RPC returned an error;
+	enum lease_error_type errcode; //LibFS only; indicates whether lease RPC returned an error;
 
 	//uint8_t dirty[g_n_max_libfs];	// Lease state for inode (read, write, digest_to_acquire, free)
 
@@ -120,7 +127,7 @@ int acquire_lease(uint32_t inum, int type, char *path);
 int update_lease_manager(uint32_t inum, uint32_t new_kernfs_id);
 int mark_lease_revocable(uint32_t inum);
 int revoke_lease(int sockfd, uint32_t seq_n, uint32_t inum);
-int report_lease_error(uint32_t inum, uint16_t errcode);
+int report_lease_error(uint32_t inum, enum lease_error_type err);
 int clear_lease_checkpoints(int req_id, int version, addr_t log_block);
 int discard_leases();
 void shutdown_lease_protocol();

@@ -1491,7 +1491,7 @@ void signal_callback(struct app_context *msg)
 #if MLFS_LEASE
 		uint32_t inum;
 		sscanf(msg->data, "|%s |%u", cmd_hdr, &inum);
-		report_lease_error(inum, 1);
+		report_lease_error(inum, LEASE_INVALID);
 #else
 		panic("invalid code path\n");
 #endif
@@ -1500,7 +1500,7 @@ void signal_callback(struct app_context *msg)
 #if MLFS_LEASE
 		uint32_t inum;
 		sscanf(msg->data, "|%s |%u", cmd_hdr, &inum);
-		report_lease_error(inum, -EACCES);
+		report_lease_error(inum, LEASE_DENIED);
 #else
 		panic("invalid code path\n");
 #endif

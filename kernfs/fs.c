@@ -2374,7 +2374,7 @@ void signal_callback(struct app_context *msg)
 			if(mid > 0)
 				rpc_lease_change(abs(mid), req_id, inum, type, version, blknr, 0);
 		}	
-		mlfs_printf("Leaving signal callback %d\n", ret);
+		mlfs_printf("Leaving signal callback %d\n", res);
 #else
 		panic("invalid code path\n");
 #endif

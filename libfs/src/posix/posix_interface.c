@@ -951,12 +951,21 @@ int mlfs_posix_chmod(const char* path, mode_t mode)
 //#if 0
 	start_log_tx();
 	struct inode *inode;
+	int ret;
 
+	// TODO : Allow namei to acquire a write lease instead of read lease.
 	if ((inode = namei(path)) == NULL) {
 		return -ENOENT;
 	}
 
-	int ret = ichmod(inode, mode);
+#if MLFS_LEASE
+	if ((ret = acquire_lease(inode->inum, LEASE_WRITE, path)) < 0) {
+		mlfs_printf("Denied write lease for inum %u (%s)\n", inode->inum, path);
+		return ret;
+	}
+#endif
+
+	ret = ichmod(inode, mode);
 	iput(inode);
 	commit_log_tx();
 	return ret;

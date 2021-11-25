@@ -320,14 +320,14 @@ int acquire_parent_lease(uint32_t inum, int type, char *path)
 	return 0;
 }
 
-int report_lease_error(uint32_t inum, uint16_t errcode)
+int report_lease_error(uint32_t inum, enum lease_error_type err)
 {
 	mlfs_lease_t* ls = lcache_find(inum);
 
 	if (!ls)
 		panic("failed to find lease\n");
 
-	ls->errcode = errcode;
+	ls->errcode = err;
 	return 0;
 }
 
@@ -463,15 +463,15 @@ retry:
 
 	if(type > ls->state || ls->hid != g_self_id) {
 		rpc_lease_change(ls->mid, g_self_id, ls->inum, type, 0, 0, 1);
-
+		mlfs_printf("Lease error code (if present):%d\n", ls->errcode);
 		// recevied denied response
-		if (ls->errcode == -EACCES) {
-			ls->errcode = 0; // clear error code
+		if (ls->errcode == LEASE_DENIED) {
+			ls->errcode = LEASE_NOERR; // clear error code
 			return -EACCES;
 		}
 		// received invalid response
-		else if(ls->errcode == 1) {
-			ls->errcode = 0; // clear error code
+		else if(ls->errcode == LEASE_INVALID) {
+			ls->errcode = LEASE_NOERR; // clear error code
 			// goto retry;
 			return -EACCES;
 		}
