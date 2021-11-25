@@ -336,6 +336,7 @@ int main(int argc, char *argv[])
 	printf("== create / directory\n");
 	printf("root inode(inum = %u) at block address %lx\n", 
 			rootino, mkfs_get_inode_block(rootino, ondisk_sb.inode_start));
+	
 	assert(rootino == ROOTINO);
 
 	bzero(&de, sizeof(de));
@@ -512,6 +513,9 @@ uint32_t mkfs_ialloc(uint8_t dev, uint16_t type)
 	din.itype = xshort(type);
 	din.nlink = xshort(1);
 	din.size = xint(0);
+	din.uid = xint(0);
+	din.gid = xint(0);
+	din.perms = xint(0755);
 
 	memset(din.l1_addrs, 0, sizeof(addr_t) * (NDIRECT + 1));
 	memset(din.l2_addrs, 0, sizeof(addr_t) * (NDIRECT + 1));

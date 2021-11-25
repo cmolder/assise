@@ -766,7 +766,7 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			uid_t ruid;
 			gid_t rgid;
 			if (parse_uid_gid(req_id, &ruid, &rgid) != 0) {
-				mlfs_printf("Could not find uid, gid for libfs ID=%d", req_id);
+				mlfs_printf("Could not find uid, gid for libfs ID=%d\n", req_id);
 				return -EACCES;
 			}		
 			mlfs_printf("LibFS ID=%d has uid=%d, gid=%d\n", req_id, ruid, rgid);
@@ -774,10 +774,10 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			// Do permission check
 			enum permcheck_type check = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
 			if (!permission_check(ip, ruid, rgid, check)) {
-				mlfs_printf("Access denied for reqid %d on inode %d:", req_id, ip->inum);
+				mlfs_printf("Access denied for reqid %d on inode %d\n", req_id, ip->inum);
 				return -EACCES;
 			}
-			mlfs_printf("Access allowed for reqid %d on inode %d:", req_id, ip->inum);
+			mlfs_printf("Access allowed for reqid %d on inode %d\n", req_id, ip->inum);
 		}
 	#endif
 
