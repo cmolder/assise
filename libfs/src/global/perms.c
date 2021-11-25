@@ -60,8 +60,8 @@ int should_group_bits_apply(uid_t uid, gid_t primary_gid, gid_t inode_gid) {
 
 int permission_check(uid_t inode_uid, gid_t inode_gid, uid_t check_uid, gid_t check_gid, uint16_t perms, enum permcheck_type check)
 {
-	mlfs_printf("Checking perms for uid %d, gid %d, perm %d against inode uid %d, gid %d, mode %o\n", 
-				check_uid, check_gid, check, inode_uid, inode_gid, perms);
+	mlfs_printf("Checking %d perms for uid %d, gid %d, perm %d against inode uid %d, gid %d, mode %o\n", 
+				check, check_uid, check_gid, check, inode_uid, inode_gid, perms);
 
 	if (check_uid == 0 && check != PC_EXECUTE)
 		return 1;

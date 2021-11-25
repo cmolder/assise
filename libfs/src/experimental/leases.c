@@ -607,7 +607,7 @@ void update_remote_ondisk_lease(uint8_t node_id, mlfs_lease_t *ls)
 }
 
 // For lease acquisitions, lease must be locked beforehand.
-int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, uint8_t *mid)
+int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, int *mid)
 {
 	*mid = -1; // Default value
 	//panic("Why is Libfs doing this?\n");
@@ -710,7 +710,7 @@ void shutdown_lease_protocol()
 
 #else
 /* KernFS */
-int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, uint8_t *mid)
+int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, int *mid)
 {
 	*mid = -1; // Default value
 	int do_migrate = 0;
@@ -762,8 +762,8 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 							ip->inum, ip->uid, ip->gid, ip->perms);
 			}
 			uint32_t ino = ip->inum;
-			uid_t iuid = ip->iuid;
-			gid_t igid = ip->igid;
+			uid_t iuid = ip->uid;
+			gid_t igid = ip->gid;
 			uint16_t iperms = ip->perms;
 			
 			// Get requesting process uid / gid
@@ -777,7 +777,7 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 
 			// Do permission check
 			enum permcheck_type check = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
-			if (!permission_check(iuid, igid, ruid, rgid, perms, check)) {
+			if (!permission_check(iuid, igid, ruid, rgid, iperms, check)) {
 				mlfs_printf("Access denied for reqid %d on inode %d\n", req_id, ino);
 				return -EACCES;
 			}
@@ -788,7 +788,8 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 #ifdef LEASE_MIGRATION
 	// this KernFS is not the lease manager
 	if (ls->mid != g_self_id) {
-		*mid = ls->mid;
+		*mid = (int)ls->mid;
+		mlfs_printf("KernFS ID %d controls this lease. Returning mid=%d, ret=0\n", ls->mid, *mid);
 		return 0;
 	}
 #endif
@@ -828,7 +829,8 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 #ifdef LEASE_MIGRATION
 		// this KernFS is not the lease manager
 		if (ls->mid != g_self_id) {
-			*mid = ls->mid;
+			*mid = (int)ls->mid;
+			mlfs_printf("KernFS ID %d controls this lease. Returning mid=%d, ret=0\n", ls->mid, *mid);
 			return 0;
 		}
 #endif
@@ -1019,7 +1021,7 @@ int discard_leases(int req_id)
 		if(item->state == LEASE_WRITE && item->holders > 0) {
 			if(item->hid == req_id) {
 				//rpc_lease_change(item->mid, item->inum, LEASE_FREE, 0, 0, 0);
-				uint8_t mid;
+				int mid;
 				int res = modify_lease_state(req_id, item->inum, LEASE_FREE, 0, 0, &mid);
 				if (res < 0) {
 					mlfs_printf("Error in discarding lease for inum %u\n", item->inum);
