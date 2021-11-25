@@ -58,32 +58,32 @@ int should_group_bits_apply(uid_t uid, gid_t primary_gid, gid_t inode_gid) {
 	return 0;
 }
 
-int permission_check(struct inode *inode, uid_t check_uid, gid_t check_gid, enum permcheck_type perm)
+int permission_check(uid_t inode_uid, gid_t inode_gid, uid_t check_uid, gid_t check_gid, uint16_t perms, enum permcheck_type check)
 {
 	mlfs_printf("Checking perms for uid %d, gid %d, perm %d against inode uid %d, gid %d, mode %o\n", 
-				check_uid, check_gid, inode->uid, inode->gid, inode->perms);
+				check_uid, check_gid, check, inode_uid, inode_gid, perms);
 
-	if (check_uid == 0 && perm != PC_EXECUTE)
+	if (check_uid == 0 && check != PC_EXECUTE)
 		return 1;
 
-  	if (inode->uid == check_uid) {
-    	switch (perm) {
-			case PC_READ: return (inode->perms & S_IRUSR) != 0;
-			case PC_WRITE: return (inode->perms & S_IWUSR) != 0;
-			case PC_EXECUTE: return (inode->perms & S_IXUSR) != 0;
+  	if (inode_uid == check_uid) {
+    	switch (check) {
+			case PC_READ: return (perms & S_IRUSR) != 0;
+			case PC_WRITE: return (perms & S_IWUSR) != 0;
+			case PC_EXECUTE: return (perms & S_IXUSR) != 0;
 		}
-  	// } else if (should_group_bits_apply(check_uid, check_gid, inode->gid)) {
-  	} else if (check_gid == inode->gid) {
-    	switch (perm) {
-			case PC_READ: return (inode->perms & S_IRGRP) != 0;
-			case PC_WRITE: return (inode->perms & S_IWGRP) != 0;
-			case PC_EXECUTE: return (inode->perms & S_IXGRP) != 0;
+  	// } else if (should_group_bits_apply(check_uid, check_gid, inode_gid)) {
+  	} else if (check_gid == inode_gid) {
+    	switch (check) {
+			case PC_READ: return (perms & S_IRGRP) != 0;
+			case PC_WRITE: return (perms & S_IWGRP) != 0;
+			case PC_EXECUTE: return (perms & S_IXGRP) != 0;
     	}
   	} else {
-    	switch (perm) {
-			case PC_READ: return (inode->perms & S_IROTH) != 0;
-			case PC_WRITE: return (inode->perms & S_IWOTH) != 0;
-			case PC_EXECUTE: return (inode->perms & S_IXOTH) != 0;
+    	switch (check) {
+			case PC_READ: return (perms & S_IROTH) != 0;
+			case PC_WRITE: return (perms & S_IWOTH) != 0;
+			case PC_EXECUTE: return (perms & S_IXOTH) != 0;
     	}
   	}
 	return 0;

@@ -751,16 +751,20 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 				sync_inode_from_dinode(ip, &_dinode);
 				
 				if (ip != NULL) {
-					mlfs_printf("Found inode from disk: ino=%d, uid=%d, gid=%d, perms=%d\n", 
+					mlfs_printf("Found inode in disk: ino=%d, uid=%d, gid=%d, perms=%o\n", 
 								 ip->inum, _dinode.uid, _dinode.gid, _dinode.perms);
 				} else {
 					panic("inode not found on cache or disk");
 				}
 				
 			} else {
-				mlfs_printf("Found inode from cache: ino=%d, uid=%d, gid=%d, perms=%o\n", 
+				mlfs_printf("Found inode in cache: ino=%d, uid=%d, gid=%d, perms=%o\n", 
 							ip->inum, ip->uid, ip->gid, ip->perms);
 			}
+			uint32_t ino = ip->inum;
+			uid_t iuid = ip->iuid;
+			gid_t igid = ip->igid;
+			uint16_t iperms = ip->perms;
 			
 			// Get requesting process uid / gid
 			uid_t ruid;
@@ -773,11 +777,11 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 
 			// Do permission check
 			enum permcheck_type check = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
-			if (!permission_check(ip, ruid, rgid, check)) {
-				mlfs_printf("Access denied for reqid %d on inode %d\n", req_id, ip->inum);
+			if (!permission_check(iuid, igid, ruid, rgid, perms, check)) {
+				mlfs_printf("Access denied for reqid %d on inode %d\n", req_id, ino);
 				return -EACCES;
 			}
-			mlfs_printf("Access allowed for reqid %d on inode %d\n", req_id, ip->inum);
+			mlfs_printf("Access allowed for reqid %d on inode %d\n", req_id, ino);
 		}
 	#endif
 
