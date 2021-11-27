@@ -67,10 +67,6 @@ int permission_check(uid_t inode_uid, gid_t inode_gid, uid_t check_uid, gid_t ch
 	if (check_uid == 0 && check != PC_EXECUTE)
 		return 1;
 
-	// If it must be the owner:
-	if (check == PC_OWN && inode_uid == check_uid)
-		return 0;
-
   	if (inode_uid == check_uid) {
     	switch (check) {
 			case PC_READ: return (perms & S_IRUSR) != 0;

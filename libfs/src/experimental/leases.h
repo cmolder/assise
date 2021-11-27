@@ -124,7 +124,7 @@ void update_remote_ondisk_lease(uint8_t node_id, mlfs_lease_t *ls);
 int acquire_family_lease(uint32_t inum, int type, char *path);
 int acquire_parent_lease(uint32_t inum, int type, char *path);
 int acquire_lease(uint32_t inum, int type, char *path);
-int acquire_lease(uint32_t inum, int type, char *path, int own, int root);
+int acquire_lease_(uint32_t inum, int type, char *path, int own, int root);
 int update_lease_manager(uint32_t inum, uint32_t new_kernfs_id);
 int mark_lease_revocable(uint32_t inum);
 int revoke_lease(int sockfd, uint32_t seq_n, uint32_t inum);

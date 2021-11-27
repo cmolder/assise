@@ -439,10 +439,10 @@ int mark_lease_revocable(uint32_t inum)
 
 // Wrapper so we don't have to update args on every single acquire_lease call
 int acquire_lease(uint32_t inum, int type, char *path) {
-	return acquire_lease(inum, type, path, 0, 0);
+	return acquire_lease_(inum, type, path, 0, 0);
 }
 
-int acquire_lease(uint32_t inum, int type, char *path, int own, int root)
+int acquire_lease_(uint32_t inum, int type, char *path, int own, int root)
 {
 	mlfs_printf("LIBFS ID= %d trying to acquire lease of type %d for inum %u\n", g_self_id, type, inum);
 
