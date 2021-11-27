@@ -124,6 +124,7 @@ void update_remote_ondisk_lease(uint8_t node_id, mlfs_lease_t *ls);
 int acquire_family_lease(uint32_t inum, int type, char *path);
 int acquire_parent_lease(uint32_t inum, int type, char *path);
 int acquire_lease(uint32_t inum, int type, char *path);
+int acquire_lease(uint32_t inum, int type, char *path, int own, int root);
 int update_lease_manager(uint32_t inum, uint32_t new_kernfs_id);
 int mark_lease_revocable(uint32_t inum);
 int revoke_lease(int sockfd, uint32_t seq_n, uint32_t inum);
@@ -136,7 +137,7 @@ void shutdown_lease_protocol();
 
 int purge_dir_caches(uint32_t inum);
 
-int modify_lease_state(int libfs_id, int inum, int req_type, int log_version, addr_t log_block, int *mid);
+int modify_lease_state(int libfs_id, int inum, int req_type, int log_version, addr_t log_block, int *mid, int own, int root);
 
 int resolve_lease_conflict(int sockfd, char *path, int type, uint32_t seqn);
 

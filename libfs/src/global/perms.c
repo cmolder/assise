@@ -63,8 +63,13 @@ int permission_check(uid_t inode_uid, gid_t inode_gid, uid_t check_uid, gid_t ch
 	mlfs_printf("Checking %d perms for uid %d, gid %d, perm %d against inode uid %d, gid %d, mode %o\n", 
 				check, check_uid, check_gid, check, inode_uid, inode_gid, perms);
 
+	// If root, allow
 	if (check_uid == 0 && check != PC_EXECUTE)
 		return 1;
+
+	// If it must be the owner:
+	if (check == PC_OWN && inode_uid == check_uid)
+		return 0;
 
   	if (inode_uid == check_uid) {
     	switch (check) {
@@ -124,3 +129,22 @@ int parse_uid_gid(int req_id, uid_t *uid, gid_t *gid) {
 	*gid = egid;
 	return 0;
 }
+
+// Check if process that sent req_id is running as root
+int check_root(int req_id) {
+	int uid = -1;
+	int gid = -1;
+
+	parse_uid_gid(req_id, &uid, &gid);
+	return uid == 0;
+}
+
+// Check if process that sent req_id is owner of file (or root)
+int check_owner(int req_id, uid_t inode_uid) {
+	int uid = -1;
+	int gid = -1;
+
+	parse_uid_gid(req_id, &uid, &gid);
+	return uid == 0 || uid == inode_uid;
+}
+

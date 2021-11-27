@@ -366,7 +366,7 @@ int revoke_lease(int sockfd, uint32_t seq_n, uint32_t inum)
 	}
 
 	//rpc_lease_flush_response(sockfd, seq_n, inum, ls->lversion, ls->lblock);
-	rpc_lease_change(ls->mid, g_self_id, ls->inum, LEASE_FREE, ls->lversion, ls->lblock, 0);
+	rpc_lease_change(ls->mid, g_self_id, ls->inum, LEASE_FREE, ls->lversion, ls->lblock, 0, 0, 0);
 
 	ls->state = LEASE_FREE;
 	ls->hid = ls->mid;
@@ -414,7 +414,7 @@ int mark_lease_revocable(uint32_t inum)
 
 	if(ls->holders == 1) {
 #ifndef LAZY_SURRENDER
-			rpc_lease_change(ls->mid, g_self_id, ls->inum, LEASE_FREE, ls->lversion, ls->lblock, 0);
+			rpc_lease_change(ls->mid, g_self_id, ls->inum, LEASE_FREE, ls->lversion, ls->lblock, 0, 0);
 			ls->state = LEASE_FREE;		
 #endif
 
@@ -437,7 +437,12 @@ int mark_lease_revocable(uint32_t inum)
 			ls->state, inum, ls->hid);
 }
 
-int acquire_lease(uint32_t inum, int type, char *path)
+// Wrapper so we don't have to update args on every single acquire_lease call
+int acquire_lease(uint32_t inum, int type, char *path) {
+	return acquire_lease(inum, type, path, 0, 0);
+}
+
+int acquire_lease(uint32_t inum, int type, char *path, int own, int root)
 {
 	mlfs_printf("LIBFS ID= %d trying to acquire lease of type %d for inum %u\n", g_self_id, type, inum);
 
@@ -462,7 +467,7 @@ int acquire_lease(uint32_t inum, int type, char *path)
 retry:
 
 	if(type > ls->state || ls->hid != g_self_id) {
-		rpc_lease_change(ls->mid, g_self_id, ls->inum, type, 0, 0, 1);
+		rpc_lease_change(ls->mid, g_self_id, ls->inum, type, 0, 0, 1, own, root);
 		mlfs_printf("Lease error code (if present):%d\n", ls->errcode);
 		// recevied denied response
 		if (ls->errcode == LEASE_DENIED) {
@@ -607,7 +612,7 @@ void update_remote_ondisk_lease(uint8_t node_id, mlfs_lease_t *ls)
 }
 
 // For lease acquisitions, lease must be locked beforehand.
-int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, int *mid)
+int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, int *mid, int own, int root)
 {
 	*mid = -1; // Default value
 	//panic("Why is Libfs doing this?\n");
@@ -710,7 +715,7 @@ void shutdown_lease_protocol()
 
 #else
 /* KernFS */
-int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, int *mid)
+int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, int *mid, int own, int root)
 {
 	*mid = -1; // Default value
 	int do_migrate = 0;
@@ -765,6 +770,16 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			uid_t iuid = ip->uid;
 			gid_t igid = ip->gid;
 			uint16_t iperms = ip->perms;
+
+			if (own && !check_owner(req_id, iuid)) {
+				mlfs_printf("Access denied: Libfs id=%d is not owner of file\n", req_id);
+				return -EACCES;
+			}
+
+			if (root && !check_root(req_id)) {
+				mlfs_printf("Access denied: Libfs id=%d is not root\n", req_id);
+				return -EACCES;
+			}
 			
 			// Get requesting process uid / gid
 			uid_t ruid;
@@ -1022,7 +1037,7 @@ int discard_leases(int req_id)
 			if(item->hid == req_id) {
 				//rpc_lease_change(item->mid, item->inum, LEASE_FREE, 0, 0, 0);
 				int mid;
-				int res = modify_lease_state(req_id, item->inum, LEASE_FREE, 0, 0, &mid);
+				int res = modify_lease_state(req_id, item->inum, LEASE_FREE, 0, 0, &mid, 0, 0);
 				if (res < 0) {
 					mlfs_printf("Error in discarding lease for inum %u\n", item->inum);
 				} else {
