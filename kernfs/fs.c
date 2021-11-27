@@ -2357,7 +2357,7 @@ void signal_callback(struct app_context *msg)
 		//mlfs_debug("received remote lease acquire with inum %u | type[%d]\n", inum, type);
 
 		int mid = -1;
-		int res = modify_lease_state(req_id, inum, type, version, blknr, &mid);
+		int res = modify_lease_state(req_id, inum, type, version, blknr, &mid, own, root);
 
 		// If mid >= 0 due to wrong lease manager
 		// (a) For read/write lease RPCs, return 'invalid lease request' to LibFS

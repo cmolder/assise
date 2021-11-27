@@ -959,7 +959,7 @@ int mlfs_posix_chmod(const char* path, mode_t mode)
 	}
 
 #if MLFS_LEASE
-	if ((ret = acquire_lease(inode->inum, LEASE_WRITE, path, 1, 0)) < 0) {
+	if ((ret = acquire_lease_(inode->inum, LEASE_WRITE, path, 1, 0)) < 0) {
 		mlfs_printf("Denied write lease for inum %u (%s)\n", inode->inum, path);
 		mlfs_printf("chmod: Permission denied for %s\n", path);
 		return ret;
@@ -999,22 +999,24 @@ int mlfs_posix_fchmod(int fd, mode_t mode)
 int mlfs_posix_chown(const char* path, uid_t owner, gid_t group)
 {
 	// panic("chown not implemented!\n");
+	int ret;
 
 #ifdef MLFS_PERMISSIONS
-	if ((ret = acquire_lease(inode->inum, LEASE_WRITE, path, 0, 1)) < 0) {
-		mlfs_printf("Denied write lease for inum %u (%s)\n", inode->inum, path);
-		mlfs_printf("chown: Permission denied for %s\n", path);
-		return ret;
-	}
-
-	start_log_tx();
 	struct inode *inode;
 
 	if ((inode = namei(path)) == NULL) {
 		return -ENOENT;
 	}
 
-	int ret = ichown(inode, owner, group);
+	if ((ret = acquire_lease_(inode->inum, LEASE_WRITE, path, 0, 1)) < 0) {
+		mlfs_printf("Denied write lease for inum %u (%s)\n", inode->inum, path);
+		mlfs_printf("chown: Permission denied for %s\n", path);
+		return ret;
+	}
+
+	start_log_tx();
+
+	ret = ichown(inode, owner, group);
 	iput(inode);
 	commit_log_tx();
 	return ret;
