@@ -771,6 +771,8 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			gid_t igid = ip->gid;
 			uint16_t iperms = ip->perms;
 
+			mlfs_printf("Checking owner: %d Checking root: %d\n", own, root);
+
 			if (own && !check_owner(req_id, iuid)) {
 				mlfs_printf("Access denied: Libfs id=%d is not owner of file\n", req_id);
 				return -EACCES;

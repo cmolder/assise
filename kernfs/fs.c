@@ -2354,7 +2354,7 @@ void signal_callback(struct app_context *msg)
 		uint32_t own;
 		uint32_t root;
 		sscanf(msg->data, "|%s |%u|%u|%d|%u|%lu", cmd_hdr, &req_id, &inum, &type, &version, &blknr, &own, &root);
-		//mlfs_debug("received remote lease acquire with inum %u | type[%d]\n", inum, type);
+		mlfs_debug("received remote lease acquire with inum %u | type[%d] | owner[%d] | root[%d]\n", inum, type, own, root);
 
 		int mid = -1;
 		int res = modify_lease_state(req_id, inum, type, version, blknr, &mid, own, root);
