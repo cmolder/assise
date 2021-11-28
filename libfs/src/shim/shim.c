@@ -125,7 +125,12 @@ int shim_do_openat(int dfd, const char *filename, int flags, mode_t mode, int* r
     ret = mlfs_posix_open((char *)filename, flags, mode);
 
     if (!check_mlfs_fd(ret)) {
-      printf("incorrect fd %d: file %s\n", ret, filename);
+      if (ret == -EACCES) {
+        printf("Open: permission denied for %s\n", filename);
+      } 
+      else {
+        printf("Open: incorrect fd %d: file %s\n", ret, filename);
+      }
     }
 
     syscall_trace(__func__, ret, 4, filename, dfd, flags, mode);
@@ -149,7 +154,12 @@ int shim_do_creat(char *filename, mode_t mode, int* result)
     ret = mlfs_posix_creat(filename, mode);
 
     if (!check_mlfs_fd(ret)) {
-      printf("incorrect fd %d\n", ret);
+      if (ret == -EACCES) {
+        printf("Create: permission denied for %s\n", filename);
+      } 
+      else {
+        printf("Create: incorrect fd %d\n", ret);
+      }
     }
 
     syscall_trace(__func__, ret, 2, filename, mode);

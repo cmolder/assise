@@ -408,7 +408,7 @@ static mode_t get_umask() {
   return mask;
 }
 
-struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode)
+struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode, int *errno)
 {
 	offset_t offset;
 	struct inode *inode = NULL;
@@ -427,6 +427,8 @@ struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode)
 		int res = acquire_lease(inode->inum, LEASE_WRITE, path);
 		if (res < 0) {
 			mlfs_printf("Denied %d type lease to inode %d (%s)", LEASE_WRITE, inode->inum, path);
+			*errno = -EACCES;
+			abort_log_tx();
 			return NULL;
 		}
 #endif
@@ -453,7 +455,9 @@ struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode)
 	get_parent_path(path, parent_path, name);
 	int res = acquire_lease(parent_inode->inum, LEASE_WRITE, parent_path);
 	if (res < 0) {
-		mlfs_printf("Denied %d type lease to parent inode %d (%s)", LEASE_WRITE, parent_inode->inum, parent_path);
+		*errno = -EACCES;
+		mlfs_printf("Denied %d type lease to parent inode %d (%s)\n", LEASE_WRITE, parent_inode->inum, parent_path);
+		abort_log_tx();
 		return NULL;
 	}
 #endif
@@ -474,6 +478,8 @@ struct inode *mlfs_object_create(char *path, unsigned short type, mode_t mode)
 		int res = acquire_lease(inode->inum, LEASE_WRITE, path);
 		if (res < 0) {
 			mlfs_printf("Denied %d type lease to inode %d (%s) for ctime update", LEASE_WRITE, inode->inum, path);
+			*errno = -EACCES;
+			abort_log_tx();
 			return NULL;
 		}
 
