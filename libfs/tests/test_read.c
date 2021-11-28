@@ -8,7 +8,7 @@ int main() {
 
         char buff[255];
 
-        if ((fp = fopen(filename, "r+")) == NULL) {
+        if ((fp = fopen(filename, "r")) == NULL) {
                 printf("Error opening %s to read\n", filename);
                 return 0;
         }
