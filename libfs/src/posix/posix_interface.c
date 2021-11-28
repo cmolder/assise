@@ -122,10 +122,10 @@ int mlfs_posix_open(char *path, int flags, mode_t mode)
 			panic("O_DIRECTORY cannot be set with O_CREAT\n");
 
 		// TODO distinguish between !inode and EACCES errors.
-		int errno = 0;
-		inode = mlfs_object_create(path, T_FILE, mode, &errno);
+		int err = 0;
+		inode = mlfs_object_create(path, T_FILE, mode, &err);
 
-		if (errno == -EACCES) {
+		if (err == -EACCES) {
 			return -EACCES;
 		}
 
@@ -497,8 +497,8 @@ int mlfs_posix_mkdir(char *path, mode_t mode)
 	mlfs_posix("[POSIX] mkdir(%s)\n", path);
 
 	// return inode with holding ilock.
-	int errno = 0;
-	inode = mlfs_object_create(path, T_DIR, mode, &errno);
+	int err = 0;
+	inode = mlfs_object_create(path, T_DIR, mode, &err);
 
 	if (!inode) {
 		//abort_log_tx();
