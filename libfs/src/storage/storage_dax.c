@@ -344,16 +344,29 @@ void dax_init_cleanup(uint8_t dev) {
 
 int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 {
-	mlfs_printf("Reading dev %d blockno %d\n", dev, blockno);
+	mlfs_printf("Reading dev %d blockno %d io_size %d and dev size %d\n", dev, blockno,io_size, dev_size[dev]);
+	uint8_t* virt_addr = NULL;
 	#ifdef LIBFS
-	if (demand_map) {
-		dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+	if (1) {
+		//dax_addr[dev] 
+		mlfs_printf("size of real device %d and second device %d",dev_size[dev],dev_size[1]);
+		virt_addr = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
 		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+		//virt_addr = (uint8_t *) mmap (NULL, io_size, PROT_READ | PROT_WRITE,MAP_SHARED| MAP_POPULATE, dax_fd, blockno * g_block_size_bytes);
+		if(virt_addr == MAP_FAILED){
+			printf("\n\nmapping call failed\n\n**************\n");
+		}
 		mlfs_printf("Demand mapping for block %d\n", blockno);
 	}
 	#endif
-
-	memmove(buf, dax_addr[dev] + (blockno * g_block_size_bytes), io_size);
+	
+//	#ifdef KERNFS
+//	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+//	virt_addr =  dax_addr[dev] + (blockno * g_block_size_bytes);
+//	#endif	
+	mlfs_printf("virt_addr shouldn't be NULL %d \n",1);
+	assert(virt_addr);
+	memmove(buf, virt_addr, io_size);
 
 	//perfmodel_add_delay(1, io_size);
 
@@ -362,7 +375,7 @@ int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 
 	#ifdef LIBFS
 	if (demand_map) {
-		munmap(dax_addr[dev], dev_size[dev]);
+		munmap(virt_addr, io_size);
 		mlfs_printf("Unmapping %d\n", blockno);
 	}
 	#endif
