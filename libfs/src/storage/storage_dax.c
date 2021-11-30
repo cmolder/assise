@@ -49,6 +49,7 @@ __thread int chan_id = -1;
 int *ioat_pending;
 struct spdk_ioat_chan **ioat_chans;
 pthread_mutex_t ioat_mutex[DMA_MAX_CHANNELS];
+int dax_fd;
 
 /*  ioat forward declarations */
 int ioat_init();
@@ -260,6 +261,8 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 	pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
 	pthread_mutex_init(&mlfs_nvm_mutex, &attr);
 
+	// mlfs_printf("Initializing device %d: %s\n", dev, dev_path);
+
 	#ifdef LIBFS
 	printf("%s\n", "dev-dax init in LibFS");
 	#else
@@ -271,6 +274,7 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 		fprintf(stderr, "cannot open dax device %s\n", dev_path);
 		exit(-1);
 	}
+	dax_fd = fd;
 
 #ifdef ENABLE_MEMCPY_OFFLOAD
 	// FIXME: make sure this is called only once (relevant if we use multiple dax devices)
@@ -301,6 +305,7 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 	printf("dev[%d] with offset %lu has base addr: %lu\n", dev, offset, (intptr_t)dax_addr[dev]);
 #endif
 
+	#ifdef KERNFS
  	 dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
 		                        MAP_SHARED| MAP_POPULATE, fd, 0);
 
@@ -308,6 +313,7 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 		perror("cannot map file system file");
 		exit(-1);
 	}
+	#endif
 
 	// FIXME: for some reason, when mmap the Linux dev-dax, dax_addr is not accessible
 	// up to the max dev_size (last 550 MB is not accessible).
@@ -325,6 +331,11 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 
 int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 {
+	#ifdef LIBFS
+	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+	#endif
+
 	memmove(buf, dax_addr[dev] + (blockno * g_block_size_bytes), io_size);
 
 	//perfmodel_add_delay(1, io_size);
@@ -332,12 +343,21 @@ int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 	mlfs_muffled("read (aligned) dev %u, block number %lu, address %lu, size %u\n",
 			dev, blockno, blockno * g_block_size_bytes, io_size);
 
+	#ifdef LIBFS
+	munmap(dax_addr[dev], dev_size[dev]);
+	#endif
+
 	return io_size;
 }
 
 int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offset, 
 		uint32_t io_size)
 {
+	#ifdef LIBFS
+	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+	#endif
+
 	//copy and flush data to pmem.
 	memmove(buf, dax_addr[dev] + (blockno * g_block_size_bytes) + offset, 
 			io_size);
@@ -347,6 +367,10 @@ int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offse
 	mlfs_muffled("read (unaligned) dev %u, block number %lu, address %lu size %u\n", 
 			dev, blockno, (blockno * g_block_size_bytes) + offset, io_size);
 
+	#ifdef LIBFS
+	munmap(dax_addr[dev], dev_size[dev]);
+	#endif
+
 	return io_size;
 }
 
@@ -355,11 +379,17 @@ int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offse
  * it call dax_commit to drain changes (like pmem_memmove_persist) */
 int dax_write(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 {
+	#ifdef LIBFS
+	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+	#endif
+
 	addr_t addr = (addr_t)dax_addr[dev] + (blockno << g_block_size_shift);
 
 	//copy and flush data to pmem.
 	pmem_memmove_persist((void *)addr, buf, io_size);
 	//PERSISTENT_BARRIER();
+
 
 	//memmove(dax_addr[dev] + (blockno * g_block_size_bytes), buf, io_size);
 	//perfmodel_add_delay(0, io_size);
@@ -367,12 +397,21 @@ int dax_write(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 	mlfs_muffled("write block number %lu, address %lu size %u\n", 
 			blockno, (blockno * g_block_size_bytes), io_size);
 
+	#ifdef LIBFS
+	munmap(dax_addr[dev], dev_size[dev]);
+	#endif	
+
 	return io_size;
 }
 
 int dax_write_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offset, 
 		uint32_t io_size)
 {
+	#ifdef LIBFS
+	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+	#endif
+
 	addr_t addr = (addr_t)dax_addr[dev] + (blockno << g_block_size_shift) + offset;
 
 	//copy and flush data to pmem.
@@ -384,6 +423,10 @@ int dax_write_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offs
 
 	mlfs_muffled("write block number %lu, address %lu size %u\n", 
 			blockno, (blockno * g_block_size_bytes) + offset, io_size);
+
+	#ifdef LIBFS
+	munmap(dax_addr[dev], dev_size[dev]);
+	#endif
 
 	return io_size;
 }
@@ -447,6 +490,9 @@ int ioat_init()
 
 int ioat_register(int dev)
 {
+	#ifdef MLFS_PERMISSIONS
+		panic ("Permissions are not compatible with ioat_register\n");
+	#endif
 	spdk_mem_register(dax_addr[dev], dev_size[dev]);
 
 	//for(int i=0; i<DMA_QUEUE_DEPTH; i++)
@@ -564,6 +610,11 @@ void ioat_exit(int dev)
 
 int dax_write_opt(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 {
+	#ifdef LIBFS
+	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+	#endif
+	
 	addr_t addr = (addr_t)dax_addr[dev] + (blockno << g_block_size_shift);
 
 #ifdef ENABLE_MEMCPY_OFFLOAD
@@ -582,12 +633,21 @@ int dax_write_opt(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 	mlfs_muffled("write(opt) block number %lu, address %lu size %u\n", 
 			blockno, (blockno * g_block_size_bytes), io_size);
 
+	#ifdef LIBFS
+	munmap(dax_addr[dev], dev_size[dev]);
+	#endif
+
 	return io_size;
 }
 
 int dax_write_opt_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offset, 
 		uint32_t io_size)
 {
+	#ifdef LIBFS
+	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+	#endif
+
 	addr_t addr = (addr_t)dax_addr[dev] + (blockno << g_block_size_shift) + offset;
 
 #ifdef ENABLE_MEMCPY_OFFLOAD
@@ -606,6 +666,10 @@ int dax_write_opt_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t 
 
 	mlfs_muffled("write(opt) block number %lu, address %lu size %u\n", 
 			blockno, (blockno * g_block_size_bytes) + offset, io_size);
+
+	#ifdef LIBFS
+	munmap(dax_addr[dev], dev_size[dev]);
+	#endif
 
 	return io_size;
 }
@@ -647,7 +711,16 @@ int dax_commit(uint8_t dev)
 
 int dax_erase(uint8_t dev, addr_t blockno, uint32_t io_size)
 {
+	#ifdef LIBFS
+	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+	#endif
+
 	memset(dax_addr[dev] + (blockno * g_block_size_bytes), 0, io_size);
+
+	#ifdef LIBFS
+	munmap(dax_addr[dev], dev_size[dev]);
+	#endif
 
 	//perfmodel_add_delay(0, io_size);
 }
@@ -657,7 +730,10 @@ void dax_exit(uint8_t dev)
 #ifdef ENABLE_MEMCPY_OFFLOAD
 	ioat_exit(dev);
 #endif
+
+	#ifdef KERNFS
 	munmap(dax_addr[dev], dev_size[dev]);
+	#endif
 
 	return;
 }
