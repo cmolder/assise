@@ -76,6 +76,7 @@ void pmem_exit(uint8_t dev);
 
 // pmem-dax
 uint8_t *dax_init(uint8_t dev, char *dev_path);
+void dax_init_cleanup(uint8_t dev);
 int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size);
 int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offset,
     uint32_t io_size);

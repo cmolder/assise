@@ -308,7 +308,7 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 	printf("dev[%d] with offset %lu has base addr: %lu\n", dev, offset, (intptr_t)dax_addr[dev]);
 #endif
 
-	#ifdef KERNFS
+	// #ifdef KERNFS
  	 dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
 		                        MAP_SHARED| MAP_POPULATE, fd, 0);
 
@@ -316,7 +316,7 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 		perror("cannot map file system file");
 		exit(-1);
 	}
-	#endif
+	// #endif
 
 	// FIXME: for some reason, when mmap the Linux dev-dax, dax_addr is not accessible
 	// up to the max dev_size (last 550 MB is not accessible).
@@ -332,8 +332,15 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 	return dax_addr[dev];
 }
 
+void dax_init_cleanup(uint8_t dev) {
+	#ifdef LIBFS
+	munmap(dax_addr[dev], dev_size[dev]);
+	#endif
+}
+
 int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 {
+	mlfs_printf("Reading dev %d\n", dev);
 	#ifdef LIBFS
 	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
 		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
@@ -356,6 +363,8 @@ int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offset, 
 		uint32_t io_size)
 {
+	mlfs_printf("Reading unaligned dev %d\n", dev);
+
 	#ifdef LIBFS
 	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
 		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
@@ -382,6 +391,8 @@ int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offse
  * it call dax_commit to drain changes (like pmem_memmove_persist) */
 int dax_write(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 {
+	mlfs_printf("Writing dev %d\n", dev);
+
 	#ifdef LIBFS
 	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
 		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
@@ -410,6 +421,8 @@ int dax_write(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 int dax_write_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offset, 
 		uint32_t io_size)
 {
+	mlfs_printf("Writing unaligned %d\n", dev);
+
 	#ifdef LIBFS
 	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
 		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
