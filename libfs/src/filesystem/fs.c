@@ -428,15 +428,27 @@ void init_fs(void)
 
 		device_init();
 
+		mlfs_printf("Finished device init%s\n", "");
+
 		debug_init();
 
+		mlfs_printf("Finished debug init%s\n", "");
+
 		cache_init();
+
+		mlfs_printf("Finished cache init%s\n", "");
 
 		//shared_memory_init();
 
 		locks_init();
 
+		mlfs_printf("Finished locks init%s\n", "");
+
+
 		read_superblock(g_root_dev);
+
+		mlfs_printf("Finished read superblock%s\n", "");
+
 #ifdef USE_SSD
 		read_superblock(g_ssd_dev);
 #endif
@@ -450,10 +462,19 @@ void init_fs(void)
 
 		mlfs_file_init();
 
+		mlfs_printf("Finished file init%s\n", "");
+
+
 #ifdef DISTRIBUTED
 		mlfs_rpc_init();
+
+		mlfs_printf("Finished RPC init%s\n", "");
+
 #else
 		init_log();
+
+		mlfs_printf("Finished log init%s\n", "");
+
 #endif
 		read_root_inode();
 
