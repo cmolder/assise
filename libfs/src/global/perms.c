@@ -13,49 +13,64 @@
 #include "distributed/peer.h"
 
 /* Following setup in https://linux.die.net/man/3/getgrouplist */
-int get_secondary_groups(uid_t uid, gid_t **buf, int *buflen) {
-    struct passwd *pw;
+int get_secondary_groups(uid_t uid, gid_t **groups, int *ngroups) {
+        struct passwd *pw;
+        *ngroups = NGROUPS;
 
-	buf = malloc(NGROUPS * sizeof(gid_t));
-	if (!buf) {
-		mlfs_debug("%s", "[DEBUG] Could not allocate groups array\n");
-		return -1;
-	} 
+        // Fetch passwd structure
+        pw = getpwuid(uid);
+        if (pw == NULL) {
+                mlfs_debug("%s", "[DEBUG] Could not get passwd struct\n");
+                return -1;
+        }
 
-	// Fetch passwd structure
-	pw = getpwuid(uid);
-	if (!pw) {
-		mlfs_debug("%s", "[DEBUG] Could not get passwd struct\n");
-		return -1;
-	}
+        // Fetch group list
+retry_grp:
+        *groups = malloc(*ngroups * sizeof(gid_t));
+        if (!*groups) {
+                mlfs_debug("%s", "[DEBUG] Could not allocate groups array\n");
+                return -1;
+        }
 
-	if (getgrouplist(pw->pw_name, pw->pw_gid, *buf, buflen) == -1) {
-		mlfs_debug("%s", "[DEBUG] Could not get group list\n");
-		return -1;
-	}
+        int res;
+        if ((res = getgrouplist(pw->pw_name, pw->pw_gid, *groups, ngroups)) < 0) {
+                if (res == -1) {
+                        // Resize the buffer and try again if we have more than NGROUPS.
+                        mlfs_debug("[DEBUG] User %s has %u groups (> %u), resizing buffer\n", pw->pw_name, ngroups, NGROUPS);
+                        goto retry_grp;
+                } else {
+                        mlfs_debug("%s", "[DEBUG] Could not get group list\n");
+                        return -1;
+                }
+        }
 
-	return 0;
+        return 0;
 }
 
 int should_group_bits_apply(uid_t uid, gid_t primary_gid, gid_t inode_gid) {
-	if (primary_gid == inode_gid)
-		return 1;
+        if (primary_gid == inode_gid)
+                return 1;
 
-	int secondary_grp_count;
-	gid_t *secondary_grp_list;
-	if (get_secondary_groups(uid, &secondary_grp_list, &secondary_grp_count) != 0) {
-		/* XXX: Swallowing error and failing */
-		mlfs_debug("[DEBUG] get_secondary_groups failed for uid %d, primary_gid %d, inode_gid %d", uid, primary_gid, inode_gid);
-		mlfs_free(secondary_grp_list);
-		return 0;
-	}
+        int secondary_grp_count;
+        gid_t *secondary_grp_list;
+        if (get_secondary_groups(uid, &secondary_grp_list, &secondary_grp_count) < 0) {
+                /* XXX: Swallowing error and failing */
+                mlfs_debug("[DEBUG] get_secondary_groups failed for uid %d, primary_gid %d, inode_gid %d", uid, primary_gid, inode_gid);
+                mlfs_free(secondary_grp_list);
+                return 0;
+        }
 
-	for (int i = 0; i < secondary_grp_count; i++) {
-		if (secondary_grp_list[i] == inode_gid) {
-			return 1;
-		}
-	}
-	return 0;
+        mlfs_printf("User %u has %u groups\n", uid, secondary_grp_count);
+        for (int i = 0; i < secondary_grp_count; i++) {
+                mlfs_printf("secondary_grp_list[%d] = %d\n", i, secondary_grp_list[i]);
+                if (secondary_grp_list[i] == inode_gid) {
+                        mlfs_free(secondary_grp_list);
+                        return 1;
+                }
+        }
+
+        mlfs_free(secondary_grp_list);
+        return 0;
 }
 
 int permission_check(uid_t inode_uid, gid_t inode_gid, uid_t check_uid, gid_t check_gid, uint16_t perms, enum permcheck_type check)
