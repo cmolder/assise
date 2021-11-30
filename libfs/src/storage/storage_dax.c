@@ -49,7 +49,6 @@ __thread int chan_id = -1;
 int *ioat_pending;
 struct spdk_ioat_chan **ioat_chans;
 pthread_mutex_t ioat_mutex[DMA_MAX_CHANNELS];
-int dax_fd;
 
 /*  ioat forward declarations */
 int ioat_init();
@@ -63,6 +62,8 @@ static void async_op_done(void* arg) {
 }
 #endif
 
+
+int dax_fd;
 
 // performance parameters
 /* SCM read extra latency than DRAM */
