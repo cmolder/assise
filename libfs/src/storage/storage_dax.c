@@ -62,6 +62,8 @@ static void async_op_done(void* arg) {
 }
 #endif
 
+int dax_fd;
+
 
 int dax_fd;
 
