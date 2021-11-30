@@ -348,11 +348,14 @@ int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 	uint8_t* virt_addr = NULL;
 	#ifdef LIBFS
 	if (1) {
+
 		//dax_addr[dev] 
-		mlfs_printf("size of real device %d and second device %d",dev_size[dev],dev_size[1]);
 		virt_addr = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
 		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
-		//virt_addr = (uint8_t *) mmap (NULL, io_size, PROT_READ | PROT_WRITE,MAP_SHARED| MAP_POPULATE, dax_fd, blockno * g_block_size_bytes);
+		
+//my change 	//virt_addr = (uint8_t *) mmap (NULL, io_size, PROT_READ | PROT_WRITE,MAP_SHARED| MAP_POPULATE, dax_fd, blockno * g_block_size_bytes);
+		
+		
 		if(virt_addr == MAP_FAILED){
 			printf("\n\nmapping call failed\n\n**************\n");
 		}
