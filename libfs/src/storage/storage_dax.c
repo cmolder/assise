@@ -63,6 +63,7 @@ static void async_op_done(void* arg) {
 #endif
 
 int dax_fd;
+int demand_map = 0;
 
 
 // performance parameters
@@ -333,14 +334,16 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 void dax_init_cleanup(uint8_t dev) {
 	#ifdef LIBFS
 	munmap(dax_addr[dev], dev_size[dev]);
+	demand_map = 1;
 	#endif
 }
 
 int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 {
-	mlfs_printf("Reading dev %d\n", dev);
+	mlfs_printf("Reading dev %d blockno %d\n", dev, blockno);
 	#ifdef LIBFS
-	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+	if (demand_map)
+		dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
 		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
 	#endif
 
@@ -352,7 +355,8 @@ int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 			dev, blockno, blockno * g_block_size_bytes, io_size);
 
 	#ifdef LIBFS
-	munmap(dax_addr[dev], dev_size[dev]);
+	if (demand_map)
+		munmap(dax_addr[dev], dev_size[dev]);
 	#endif
 
 	return io_size;
@@ -361,10 +365,11 @@ int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offset, 
 		uint32_t io_size)
 {
-	mlfs_printf("Reading unaligned dev %d\n", dev);
+	mlfs_printf("Reading unaligned dev %d blockno %d\n", dev, blockno);
 
 	#ifdef LIBFS
-	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+	if (demand_map)
+		dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
 		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
 	#endif
 
@@ -378,7 +383,8 @@ int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offse
 			dev, blockno, (blockno * g_block_size_bytes) + offset, io_size);
 
 	#ifdef LIBFS
-	munmap(dax_addr[dev], dev_size[dev]);
+	if (demand_map)
+		munmap(dax_addr[dev], dev_size[dev]);
 	#endif
 
 	return io_size;
@@ -389,10 +395,11 @@ int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offse
  * it call dax_commit to drain changes (like pmem_memmove_persist) */
 int dax_write(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 {
-	mlfs_printf("Writing dev %d\n", dev);
+	mlfs_printf("Writing dev %d blockno %d\n", dev, blockno);
 
 	#ifdef LIBFS
-	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+	if (demand_map)
+		dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
 		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
 	#endif
 
@@ -410,7 +417,8 @@ int dax_write(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 			blockno, (blockno * g_block_size_bytes), io_size);
 
 	#ifdef LIBFS
-	munmap(dax_addr[dev], dev_size[dev]);
+	if (demand_map)
+		munmap(dax_addr[dev], dev_size[dev]);
 	#endif	
 
 	return io_size;
@@ -419,10 +427,11 @@ int dax_write(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 int dax_write_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offset, 
 		uint32_t io_size)
 {
-	mlfs_printf("Writing unaligned %d\n", dev);
+	mlfs_printf("Writing unaligned %d blockno %d\n", dev, blockno);
 
 	#ifdef LIBFS
-	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+	if (demand_map)
+		dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
 		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
 	#endif
 
@@ -439,7 +448,8 @@ int dax_write_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offs
 			blockno, (blockno * g_block_size_bytes) + offset, io_size);
 
 	#ifdef LIBFS
-	munmap(dax_addr[dev], dev_size[dev]);
+	if (demand_map)
+		munmap(dax_addr[dev], dev_size[dev]);
 	#endif
 
 	return io_size;
