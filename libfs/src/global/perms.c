@@ -73,6 +73,15 @@ int should_group_bits_apply(uid_t uid, gid_t primary_gid, gid_t inode_gid) {
         return 0;
 }
 
+
+int violates_sticky_bit(uid_t uid, struct inode *parent, struct inode *to_manipulate) {
+        if ((parent->perms & S_ISVTX) == 0)
+                return 0;
+
+        /* FIXME: check CAP_FOWNER instead of euid != 0 */
+        return uid != 0 && uid != to_manipulate->uid && uid != parent->uid;
+}
+
 int permission_check(uid_t inode_uid, gid_t inode_gid, uid_t check_uid, gid_t check_gid, uint16_t perms, enum permcheck_type check)
 {
 	mlfs_printf("Checking %d perms for uid %d, gid %d, perm %d against inode uid %d, gid %d, mode %o\n", 
@@ -87,19 +96,19 @@ int permission_check(uid_t inode_uid, gid_t inode_gid, uid_t check_uid, gid_t ch
 			case PC_WRITE: return (perms & S_IWUSR) != 0;
 			case PC_EXECUTE: return (perms & S_IXUSR) != 0;
 		}
-  	// } else if (should_group_bits_apply(check_uid, check_gid, inode_gid)) {
-  	} else if (check_gid == inode_gid) {
-    	switch (check) {
-			case PC_READ: return (perms & S_IRGRP) != 0;
-			case PC_WRITE: return (perms & S_IWGRP) != 0;
-			case PC_EXECUTE: return (perms & S_IXGRP) != 0;
-    	}
+  	} else if (should_group_bits_apply(check_uid, check_gid, inode_gid)) {
+  	//} else if (check_gid == inode_gid) {
+                switch (check) {
+                        case PC_READ: return (perms & S_IRGRP) != 0;
+                        case PC_WRITE: return (perms & S_IWGRP) != 0;
+                        case PC_EXECUTE: return (perms & S_IXGRP) != 0;
+                }
   	} else {
-    	switch (check) {
-			case PC_READ: return (perms & S_IROTH) != 0;
-			case PC_WRITE: return (perms & S_IWOTH) != 0;
-			case PC_EXECUTE: return (perms & S_IXOTH) != 0;
-    	}
+                switch (check) {
+                        case PC_READ: return (perms & S_IROTH) != 0;
+                        case PC_WRITE: return (perms & S_IWOTH) != 0;
+                        case PC_EXECUTE: return (perms & S_IXOTH) != 0;
+                }
   	}
 	return 0;
 }
@@ -110,29 +119,29 @@ int parse_uid_gid(int req_id, uid_t *uid, gid_t *gid) {
 	int MAX_PID_PATH = 100;
 	int MAX_BUF = 100;
 	char path[MAX_PID_PATH];
-    char buf_read[MAX_BUF];
+        char buf_read[MAX_BUF];
 
-    snprintf(path, MAX_PID_PATH, "/proc/%d/status", pid);
-    FILE *status = fopen(path, "r");
+        snprintf(path, MAX_PID_PATH, "/proc/%d/status", pid);
+        FILE *status = fopen(path, "r");
 
 	uid_t ruid;
-    uid_t euid;
-    uid_t suid;
-    uid_t fuid;
+        uid_t euid;
+        uid_t suid;
+        uid_t fuid;
 
-    gid_t rgid;
-    gid_t egid;
-    gid_t sgid;
-    gid_t fgid;
+        gid_t rgid;
+        gid_t egid;
+        gid_t sgid;
+        gid_t fgid;
 
-    // UID is line 8, GUID is line 9
-    int items = 0;
-    char *end;
-    while (items < 1 && end != NULL) {
-        end = fgets(buf_read, MAX_BUF, status);
-        items = sscanf(buf_read, "Uid: %d %d %d %d", &ruid, &euid, &suid, &fuid);
-    }
-    fscanf(status, "Gid: %d %d %d %d\n", &rgid, &egid, &sgid, &fgid);
+        // UID is line 8, GUID is line 9
+        int items = 0;
+        char *end;
+        while (items < 1 && end != NULL) {
+                end = fgets(buf_read, MAX_BUF, status);
+                items = sscanf(buf_read, "Uid: %d %d %d %d", &ruid, &euid, &suid, &fuid);
+        }
+        fscanf(status, "Gid: %d %d %d %d\n", &rgid, &egid, &sgid, &fgid);
 	fclose(status);
 
 	*uid = euid;
