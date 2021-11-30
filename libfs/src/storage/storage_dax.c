@@ -333,7 +333,9 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 }
 
 void dax_init_cleanup(uint8_t dev) {
+
 	#ifdef LIBFS
+	mlfs_printf("Unmapping nvm for device %d\n", dev);
 	munmap(dax_addr[dev], dev_size[dev]);
 	#endif
 }
