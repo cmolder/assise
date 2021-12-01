@@ -60,9 +60,9 @@ int should_group_bits_apply(uid_t uid, gid_t primary_gid, gid_t inode_gid) {
                 return 0;
         }
 
-        mlfs_printf("User %u has %u groups\n", uid, secondary_grp_count);
+        mlfs_debug("[DEBUG] User %u has %u groups\n", uid, secondary_grp_count);
         for (int i = 0; i < secondary_grp_count; i++) {
-                mlfs_printf("secondary_grp_list[%d] = %d\n", i, secondary_grp_list[i]);
+                mlfs_debug("[DEBUG] secondary_grp_list[%d] = %d\n", i, secondary_grp_list[i]);
                 if (secondary_grp_list[i] == inode_gid) {
                         mlfs_free(secondary_grp_list);
                         return 1;

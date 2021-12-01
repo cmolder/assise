@@ -4,10 +4,14 @@
 #include <grp.h>
 #include <sys/stat.h>
 
-int main() {
+int main(int argc, char *argv[]) {
+        if(argc != 2) {
+            print("Supply two arguments: ./test_chmod <path> <mode>\n");
+        } 
+
         FILE *fp;
-        char* filename = "/mlfs/test_file_access.txt";
-        char* mode = "0600"; // No read for non-user
+        char* filename = argv[0];
+        char* mode = argv[1]; // e.g. "0600" : No read for non-owner
 
         int i = strtol(mode, 0, 8);
         int r;

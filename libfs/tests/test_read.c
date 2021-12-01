@@ -2,10 +2,13 @@
 #include <grp.h>
 #include <sys/stat.h>
 
-int main() {
-        FILE *fp;
-        char* filename = "/mlfs/test_file_access.txt";
+int main(int argc, char *argv[]){
+        if( argc != 1 ) {
+            print("Supply one argument: ./test_read <filepath>\n");
+        }    
 
+        FILE *fp;
+        char* filename = argv[0];
         char buff[255];
 
         if ((fp = fopen(filename, "r")) == NULL) {
