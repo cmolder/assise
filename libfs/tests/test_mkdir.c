@@ -5,13 +5,14 @@
 #include <sys/stat.h>
 
 int main(int argc, char *argv[]) {
-        if(argc != 2) {
-            print("Supply two arguments: ./test_mkdir <dirpath> <mode>\n");
+        if(argc != 3) {
+            printf("Supply two arguments: ./test_mkdir <dirpath> <mode>\n");
+            return 0;
         }    
 
         FILE *fp;
-        char* dirname = argv[0];
-        char* mode = argv[1]; // e.g. 0777: Anyone can read/write/execute stuff inside.
+        char* dirname = argv[1];
+        char* mode = argv[2]; // e.g. 0777: Anyone can read/write/execute stuff inside.
 
         int i = strtol(mode, 0, 8);
         int r;
