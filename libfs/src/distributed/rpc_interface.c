@@ -434,7 +434,7 @@ int rpc_lease_change(int mid, int rid, uint32_t inum, int type, uint32_t version
 
 	snprintf(msg->data, RPC_MSG_BYTES, "|lease |%u|%u|%d|%u|%lu|%u|%d", rid, inum, type, version, blknr, lq, chown_target_gid);
 	mlfs_printf("\x1b[33m [L] trigger lease acquire: inum[%u] type[%d] version[%u] blknr[%lu] qualifier[%u] tgid [%d] (%s) \x1b[0m\n",
-			inum, type, version, blknr, lq, tgid, sync?"SYNC":"ASYNC");
+			inum, type, version, blknr, lq, chown_target_gid, sync?"SYNC":"ASYNC");
 	//mlfs_printf("msg->data %s buffer_id %d\n", msg->data, buffer_id);
 
 	//we still send an async msg, since we want to synchronously wait for the msg response and not

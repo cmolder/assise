@@ -613,7 +613,7 @@ void update_remote_ondisk_lease(uint8_t node_id, mlfs_lease_t *ls)
 
 // For lease acquisitions, lease must be locked beforehand.
 int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, \
-					   int *mid, enum lease_qualifier lq, int chown_target_group)
+					   int *mid, enum lease_qualifier lq, gid_t chown_target_group)
 {
 	*mid = -1; // Default value
 	//panic("Why is Libfs doing this?\n");
@@ -717,7 +717,7 @@ void shutdown_lease_protocol()
 #else
 /* KernFS */
 int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, \
-					   int *mid, enum lease_qualifier lq, int chown_target_group)
+					   int *mid, enum lease_qualifier lq, gid_t chown_target_group)
 {
 	*mid = -1; // Default value
 	int do_migrate = 0;
@@ -788,13 +788,13 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			case LEASE_STANDARD: 
 				enum permcheck_type checktype = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
 				if (!permission_check(iuid, igid, ruid, rgid, iperms, checktype)) {
-					mlfs_printf("Access denied for reqid %d on inode %d\n", req_id, ino);
+					mlfs_printf("access denied: reqid %d (uid %d, gid %d) on inode %d\n", req_id, ruid, rgid, ino);
 					return -EACCES;
 				} break;
 
 			case LEASE_CHMOD: 
 				if (!check_owner(ruid, iuid)) {
-					mlfs_printf("chmod access denied: reqid %d is not root or the file/dir's owner\n", req_id);
+					mlfs_printf("chmod access denied: reqid %d (uid %d, gid %d) is not root or the file/dir's owner\n", req_id, ruid, rgid);
 					return -EPERM;
 				} 
 				// TODO - Track this lease for KernFS so it can re-check the changes on digestion.
@@ -802,7 +802,7 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 
 			case LEASE_CHOWN_OWNER:
 				if (!check_root(ruid)) {
-					mlfs_printf("chown owner-only access denied: reqid %d is not privileged\n", req_id);
+					mlfs_printf("chown owner-only access denied: reqid %d (uid %d, gid %d) is not root\n", req_id, ruid, rgid);
 					return -EPERM;
 				} 
 				// TODO - Track this lease for KernFS so it can re-check the changes on digestion.
@@ -811,12 +811,12 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 			case LEASE_CHOWN_GROUP:
 				mlfs_assert(chown_target_group != -1);
 				if (!check_owner(ruid, iuid)) {
-					mlfs_printf("chmod group-only access denied: reqid %d is not root or the file/dir's owner\n", req_id);
+					mlfs_printf("chmod group-only access denied: reqid %d (uid %d, gid %d) is not root or the file/dir's owner\n", req_id, ruid, rgid);
 					return -EPERM;
 				} 
 
 				if (!check_group_membership(ruid, chown_target_group)) {
-					mlfs_printf("chown group-only access denied: reqid %d is not a member of group %d\n", req_id, chown_target_group);
+					mlfs_printf("chown group-only access denied: reqid %d (uid %d, gid %d) is not a member of group %d\n", req_id, ruid, rgid, chown_target_group);
 					return -EPERM;
 				} 
 				// TODO - Track this lease for KernFS so it can re-check the changes on digestion.
@@ -825,12 +825,12 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 
 			case LEASE_CHOWN_OWNER_GROUP:
 				mlfs_assert(chown_target_group != -1);
-				if (!check_root(req_id)) {
-					mlfs_printf("chown owner-group access denied: reqid %d is not root\n", req_id);
+				if (!check_root(ruid)) {
+					mlfs_printf("chown owner-group access denied: reqid %d (uid %d, gid %d) is not root\n", req_id, ruid, rgid);
 					return -EPERM;
 				}
 				if (!check_group_membership(ruid, chown_target_group)) {
-					mlfs_printf("chown group access denied: LibFS id=%d is not a member of group %d\n", req_id, chown_target_group);
+					mlfs_printf("chown group access denied: reqid %d (uid %d, gid %d) is not a member of group %d\n", req_id, ruid, rgid, chown_target_group);
 					return -EPERM;
 				} 
 				// TODO - Track this lease for KernFS so it can re-check the changes on digestion.

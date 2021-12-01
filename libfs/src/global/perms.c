@@ -169,7 +169,7 @@ int check_group_membership(uid_t uid, gid_t target_gid) {
 
         if (get_secondary_groups(uid, &secondary_grp_list, &secondary_grp_count) < 0) {
                 /* XXX: Swallowing error and rejecting */
-                mlfs_debug("[DEBUG] get_secondary_groups failed for uid %d, primary_gid %d, inode_gid %d", uid, primary_gid, inode_gid);
+                mlfs_debug("[DEBUG] get_secondary_groups failed for uid %d, target_gid %g\n", uid, target_gid);
                 mlfs_free(secondary_grp_list);
                 return 0;
         }

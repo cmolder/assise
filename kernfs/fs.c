@@ -2354,7 +2354,7 @@ void signal_callback(struct app_context *msg)
 		addr_t blknr;
 		uint32_t own;
 		uint32_t root;
-		enum lease_qualfiier lq;
+		int lq;
 		gid_t chown_target_gid;
 		sscanf(msg->data, "|%s |%u|%u|%d|%u|%lu|%u|%u", cmd_hdr, &req_id, &inum, &type, &version, &blknr, &lq, &chown_target_gid);
 		mlfs_debug("received remote lease acquire with inum %u | type[%d] | qualifier[%u] | chown_target_gid[%d]\n", inum, type, lq, chown_target_gid);
@@ -2377,7 +2377,7 @@ void signal_callback(struct app_context *msg)
 		}
 		else {
 			if(mid > 0)
-				rpc_lease_change(abs(mid), req_id, inum, type, version, blknr, 0, lq, tgid);
+				rpc_lease_change(abs(mid), req_id, inum, type, version, blknr, 0, lq, chown_target_gid);
 		}	
 		mlfs_printf("Leaving signal callback %d\n", res);
 #else

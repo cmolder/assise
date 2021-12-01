@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
                 target_group = g->gr_gid;
         }
 
-        printf("Trying chown %s to owner %s (%d), group %s (%d)", filename, owner, target_owner, group, target_group);
+        printf("Trying chown %s to owner %s (%d), group %s (%d)\n", filename, owner, target_owner, group, target_group);
         if((chown(filename, target_owner, target_group)) != 0){
                 printf("Error doing chmod on %s (owner=%d, group=%d)\n", filename, target_owner, target_group);
                 return 0;
