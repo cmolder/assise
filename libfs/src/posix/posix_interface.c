@@ -1011,7 +1011,7 @@ int mlfs_posix_chown(const char* path, uid_t owner, gid_t group)
 	enum lease_qualifier lq;
 	if (owner == -1 && group == -1) {
 		return 0;
-	} else if (owner == -1 and group >= 0) {
+	} else if (owner == -1 && group >= 0) {
 		lq = LEASE_CHOWN_GROUP; // group checks
 	} else {
 		lq = LEASE_CHOWN_OWNER; // owner, owner+group checks

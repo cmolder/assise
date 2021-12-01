@@ -818,7 +818,7 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 
 				// root: can change groups arbitrarily.
 				// owner: must be a member of the group it wants to change the file/dir to.
-				if (!check_root(ruid) and !check_group_membership(ruid, chown_target_group)) {
+				if (!check_root(ruid) && !check_group_membership(ruid, chown_target_group)) {
 					mlfs_printf("chown group-only access denied: reqid %d (uid %d, gid %d) is not root, and not a member of group %d\n", req_id, ruid, rgid, chown_target_group);
 					return -EPERM;
 				} 
