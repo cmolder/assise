@@ -1009,20 +1009,15 @@ int mlfs_posix_chown(const char* path, uid_t owner, gid_t group)
 	}
 
 	enum lease_qualifier lq;
-	gid_t tgid = -1;
 	if (owner == -1 && group == -1) {
 		return 0;
-	} else if (owner == -1 && group != -1) {
-		lq = LEASE_CHOWN_GROUP;
-		tgid = group;
-	} else if (owner != -1 && group == -1) {
-		lq = LEASE_CHOWN_OWNER;
+	} else if (owner == -1 and group >= 0) {
+		lq = LEASE_CHOWN_GROUP; // group checks
 	} else {
-		lq = LEASE_CHOWN_OWNER_GROUP;
-		tgid = group;
+		lq = LEASE_CHOWN_OWNER; // owner, owner+group checks
 	}
 
-	if ((ret = acquire_lease_(inode->inum, LEASE_WRITE, path, lq, tgid)) < 0) {
+	if ((ret = acquire_lease_(inode->inum, LEASE_WRITE, path, lq, group)) < 0) {
 		mlfs_printf("Denied write lease for inum %u (%s)\n", inode->inum, path);
 		mlfs_printf("chown: Permission denied for %s\n", path);
 		return ret;

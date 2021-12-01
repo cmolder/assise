@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
         int i = strtol(mode, 0, 8);
         int r;
 
-        printf("Trying mkdir %s (mode %s)", dirname, mode);
+        printf("Trying mkdir %s (mode %s)\n", dirname, mode);
         if((r = mkdir(dirname, i)) != 0){
                 printf("Error doing mkdir on %s\n", dirname);
                 return 0;

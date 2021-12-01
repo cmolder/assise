@@ -29,12 +29,11 @@ enum lease_error_type {
 };
 
 enum lease_qualifier {
-	LEASE_STANDARD = 0, // Normal read/write lease
-	LEASE_CHMOD, // Must use ownership checks
-	LEASE_CHOWN_OWNER, // Must use root / group checks
-	LEASE_CHOWN_GROUP,
-	LEASE_CHOWN_OWNER_GROUP,
-	LEASE_CHINO, // Must use sticky bit checks to unlink / rename / move inode
+	LEASE_STANDARD = 0, // Standard permission check
+	LEASE_CHMOD, 	    // Check if requestor owns file (or is root)
+	LEASE_CHOWN_OWNER,  // Check if requestor is root
+	LEASE_CHOWN_GROUP,  // Check if requestor owns file (or is root), and (if not root) a member of the target group
+	LEASE_CHINO, 		// Standard permission check + sticky bit
 };
 
 typedef struct lease_info {
