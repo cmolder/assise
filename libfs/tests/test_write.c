@@ -1,8 +1,12 @@
 #include <stdio.h>
 
-int main() {
+int main(int argc, char *argv[]) {
+        if( argc != 1 ) {
+            print("Supply one argument: ./test_write <filepath>\n");
+        }  
+
         FILE *fp;
-        char* filename = "/mlfs/test_file_access.txt";
+        char* filename = argv[0];
 
         if ((fp = fopen(filename, "w+")) == NULL) {
                 printf("Error opening %s to write.\n", filename);
