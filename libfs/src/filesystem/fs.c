@@ -1066,26 +1066,23 @@ int itrunc(struct inode *ip, offset_t length)
 int ichown(struct inode *ip, uid_t owner, gid_t group) {
 
 #if MLFS_PERMISSIONS
-	panic("ichown not implemented yet.\n"); // TODO use custom LEASE_CHOWN type to trigger the right perm check.
-#if 0
-	acquire_lease(inum, type, path);
-
-	int precheck = chown_perm_check(owner, group);
-	if (precheck != 0)
-		return precheck;
-
 	pthread_mutex_lock(&ip->i_mutex);
-	if (owner >= 0)
+	if (owner != -1 && owner >= 0)
 		ip->uid = owner;
-	if(group >= 0)
+	if (group != -1 && group >= 0)
 		ip->gid = group;
+
+	// Unset setgid/setuid on (executable) files if the LibFS is not root.
+	if (geteuid() != 0 && ip->type == T_FILE)
+		ip->perms = ip->perms & ~(S_ISGID | S_ISUID);
+
 	iupdate(ip);
 	pthread_mutex_unlock(&ip->i_mutex);
 
 	return 0;
-#endif
+	
 #else
-	panic("ichown not supported.\n");
+	panic("ichown not supported without MLFS_PERMISSIONS.\n");
 #endif
 }
 
@@ -1093,15 +1090,15 @@ int ichown(struct inode *ip, uid_t owner, gid_t group) {
 int ichmod(struct inode *ip, mode_t mode) {
 
 #if MLFS_PERMISSIONS
-	if (mode & S_ISUID) {
-		mlfs_info("%s: chmod of setuid bit not supported\n", __func__);
-		return -EINVAL;
-	}
+	// if (mode & S_ISUID) {
+	// 	mlfs_info("%s: chmod of setuid bit not supported\n", __func__);
+	// 	return -EINVAL;
+	// }
 
-	/* FIXME: check if caller doesn't have CAP_FOWNER, instead of geteuid() != root */
-	if (geteuid() != 0 && ip->uid != geteuid()) {
-		return -EPERM;
-	}
+	// /* FIXME: check if caller doesn't have CAP_FOWNER, instead of geteuid() != root */
+	// if (geteuid() != 0 && ip->uid != geteuid()) { // should be handled by kernfs already
+	// 	return -EPERM;
+	// }
 
 	pthread_mutex_lock(&ip->i_mutex);
 	ip->perms = mode;
@@ -1110,7 +1107,7 @@ int ichmod(struct inode *ip, mode_t mode) {
 	return 0;
 
 #else
-	panic("ichmod not supported.\n");
+	panic("ichmod not supported without MLFS_PERMISSIONS.\n");
 #endif
 }
 
