@@ -151,13 +151,13 @@ int mlfs_posix_open(char *path, int flags, mode_t mode)
 #if MLFS_PERMISSIONS
 		int res;
 		if ((flags & O_WRONLY) || (flags & O_RDWR)) {
-			if((res = acquire_lease(inode->inum, LEASE_WRITE, path)) < 0) {
+			if((res = acquire_lease(inode->inum, LEASE_WRITE, path)) < -EACCES) {
 				iunlockput(inode);
 				return res;
 			}
 				
 		} else if (flags & O_RDONLY) {
-			if((res = acquire_lease(inode->inum, LEASE_READ, path)) < 0) {
+			if((res = acquire_lease(inode->inum, LEASE_READ, path)) < -EACCES) {
 				iunlockput(inode);
 				return res;
 			}			
@@ -965,8 +965,9 @@ int mlfs_posix_chmod(const char* path, mode_t mode)
 	}
 
 #if MLFS_LEASE
-	if ((ret = acquire_lease(inode->inum, LEASE_WRITE, path)) < 0) {
+	if ((ret = acquire_lease_(inode->inum, LEASE_WRITE, path, 1, 0)) < 0) {
 		mlfs_printf("Denied write lease for inum %u (%s)\n", inode->inum, path);
+		mlfs_printf("chmod: Permission denied for %s\n", path);
 		return ret;
 	}
 #endif
@@ -1003,20 +1004,30 @@ int mlfs_posix_fchmod(int fd, mode_t mode)
 
 int mlfs_posix_chown(const char* path, uid_t owner, gid_t group)
 {
-	panic("chown not implemented!\n");
+	// panic("chown not implemented!\n");
+	int ret;
 
-#if 0
-	start_log_tx();
+#ifdef MLFS_PERMISSIONS
 	struct inode *inode;
 
 	if ((inode = namei(path)) == NULL) {
 		return -ENOENT;
 	}
 
-	int ret = ichown(inode, owner, group);
+	if ((ret = acquire_lease_(inode->inum, LEASE_WRITE, path, 0, 1)) < 0) {
+		mlfs_printf("Denied write lease for inum %u (%s)\n", inode->inum, path);
+		mlfs_printf("chown: Permission denied for %s\n", path);
+		return ret;
+	}
+
+	start_log_tx();
+
+	ret = ichown(inode, owner, group);
 	iput(inode);
 	commit_log_tx();
 	return ret;
+#else
+	panic("chown not implemented!\n");
 #endif
 }
 
