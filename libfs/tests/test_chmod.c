@@ -5,13 +5,14 @@
 #include <sys/stat.h>
 
 int main(int argc, char *argv[]) {
-        if(argc != 2) {
-            print("Supply two arguments: ./test_chmod <path> <mode>\n");
+        if(argc != 3) {
+            printf("Supply two arguments: ./test_chmod <path> <mode>\n");
+            return 0;
         } 
 
         FILE *fp;
-        char* filename = argv[0];
-        char* mode = argv[1]; // e.g. "0600" : No read for non-owner
+        char* filename = argv[1];
+        char* mode = argv[2]; // e.g. "0600" : No read for non-owner
 
         int i = strtol(mode, 0, 8);
         int r;
