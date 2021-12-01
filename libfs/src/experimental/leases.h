@@ -28,6 +28,15 @@ enum lease_error_type {
 	LEASE_INVALID
 };
 
+enum lease_qualifier {
+	LEASE_STANDARD = 0, // Normal read/write lease
+	LEASE_CHMOD, // Must use ownership checks
+	LEASE_CHOWN_OWNER, // Must use root / group checks
+	LEASE_CHOWN_GROUP,
+	LEASE_CHOWN_OWNER_GROUP,
+	LEASE_CHINO, // Must use sticky bit checks to unlink / rename / move inode
+};
+
 typedef struct lease_info {
 	int dev;
 	uint32_t inum;
@@ -124,7 +133,7 @@ void update_remote_ondisk_lease(uint8_t node_id, mlfs_lease_t *ls);
 int acquire_family_lease(uint32_t inum, int type, char *path);
 int acquire_parent_lease(uint32_t inum, int type, char *path);
 int acquire_lease(uint32_t inum, int type, char *path);
-int acquire_lease_(uint32_t inum, int type, char *path, int own, int root);
+int acquire_lease_(uint32_t inum, int type, char *path, enum lease_qualifier lq, gid_t chown_target_group);
 int update_lease_manager(uint32_t inum, uint32_t new_kernfs_id);
 int mark_lease_revocable(uint32_t inum);
 int revoke_lease(int sockfd, uint32_t seq_n, uint32_t inum);
@@ -137,7 +146,8 @@ void shutdown_lease_protocol();
 
 int purge_dir_caches(uint32_t inum);
 
-int modify_lease_state(int libfs_id, int inum, int req_type, int log_version, addr_t log_block, int *mid, int own, int root);
+int modify_lease_state(int libfs_id, int inum, int req_type, int log_version, addr_t log_block, \
+					   int *mid, enum lease_qualifier lq, gid_t chown_target_group);
 
 int resolve_lease_conflict(int sockfd, char *path, int type, uint32_t seqn);
 

@@ -959,7 +959,7 @@ int mlfs_posix_chmod(const char* path, mode_t mode)
 	}
 
 #if MLFS_LEASE
-	if ((ret = acquire_lease_(inode->inum, LEASE_WRITE, path, 1, 0)) < 0) {
+	if ((ret = acquire_lease_(inode->inum, LEASE_WRITE, path, LEASE_CHMOD, -1)) < 0) {
 		mlfs_printf("Denied write lease for inum %u (%s)\n", inode->inum, path);
 		mlfs_printf("chmod: Permission denied for %s\n", path);
 		return ret;
@@ -1008,7 +1008,21 @@ int mlfs_posix_chown(const char* path, uid_t owner, gid_t group)
 		return -ENOENT;
 	}
 
-	if ((ret = acquire_lease_(inode->inum, LEASE_WRITE, path, 0, 1)) < 0) {
+	enum lease_qualifier lq;
+	gid_t tgid = -1;
+	if (owner == -1 && group == -1) {
+		return 0;
+	} else if (owner == -1 && group != -1) {
+		lq = LEASE_CHOWN_GROUP;
+		tgid = group;
+	} else if (owner != -1 && group == -1) {
+		lq = LEASE_CHOWN_OWNER;
+	} else {
+		lq = LEASE_CHOWN_OWNER_GROUP;
+		tgid = group;
+	}
+
+	if ((ret = acquire_lease_(inode->inum, LEASE_WRITE, path, lq, tgid)) < 0) {
 		mlfs_printf("Denied write lease for inum %u (%s)\n", inode->inum, path);
 		mlfs_printf("chown: Permission denied for %s\n", path);
 		return ret;
