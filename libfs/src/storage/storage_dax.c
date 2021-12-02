@@ -344,30 +344,31 @@ void dax_init_cleanup(uint8_t dev) {
 
 int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 {
-	mlfs_printf("Reading dev %d blockno %d io_size %d and dev size %d\n", dev, blockno,io_size, dev_size[dev]);
-	uint8_t* virt_addr = NULL;
+	mlfs_printf("Reading dev %d blockno %d io_size %d and dev size %d\n and dax_fd is %d", dev, blockno,io_size, dev_size[dev],dax_fd);
+	uint8_t* virt_addr = (uint8_t *)mmap(NULL, (dev_size[dev]-4096*2), PROT_READ | PROT_WRITE, MAP_SHARED| MAP_POPULATE, dax_fd, 4096*2);
+	printf("\n\njust mapped for dax_read\n\n");
 	#ifdef LIBFS
-	if (1) {
+//	if (1) {
 
 		//dax_addr[dev] 
-		virt_addr = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
-		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+//		virt_addr = (uint8_t *)mmap(NULL, 112, PROT_READ | PROT_WRITE,
+//		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
 		
 //my change 	//virt_addr = (uint8_t *) mmap (NULL, io_size, PROT_READ | PROT_WRITE,MAP_SHARED| MAP_POPULATE, dax_fd, blockno * g_block_size_bytes);
 		
 		
-		if(virt_addr == MAP_FAILED){
-			printf("\n\nmapping call failed\n\n**************\n");
-		}
-		mlfs_printf("Demand mapping for block %d\n", blockno);
-	}
+//		if(virt_addr == MAP_FAILED){
+//			printf("\n\nmapping call failed\n\n**************\n");
+//		}
+//		mlfs_printf("Demand mapping for block %d\n", blockno);
+//	}
 	#endif
 	
 //	#ifdef KERNFS
 //	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,MAP_SHARED| MAP_POPULATE, dax_fd, 0);
 //	virt_addr =  dax_addr[dev] + (blockno * g_block_size_bytes);
 //	#endif	
-	mlfs_printf("virt_addr shouldn't be NULL %d \n",1);
+	mlfs_printf("\n\nvirt_addr shouldn't be NULL %d \n",1);
 	assert(virt_addr);
 	memmove(buf, virt_addr, io_size);
 
@@ -424,7 +425,7 @@ int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offse
  * it call dax_commit to drain changes (like pmem_memmove_persist) */
 int dax_write(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 {
-	mlfs_printf("Writing dev %d blockno %d\n", dev, blockno);
+	mlfs_printf("Writing dev %d blockno %d\n, size of the dev is %d", dev, blockno,dev_size[dev]);
 
 	#ifdef LIBFS
 	if (demand_map)
