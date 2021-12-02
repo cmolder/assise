@@ -264,6 +264,7 @@ uint64_t log_start_offset;
 uint64_t shared_start_offset;
 
 uint64_t align = 2097152UL;
+uint64_t pgsize = 4096UL;
 #endif
 
 
@@ -362,6 +363,14 @@ uint64_t round_to_alignment (uint64_t value) {
 	return value;
 }
 
+uint64_t pg_round_down (uint64_t value) {
+	uint64_t diff = value % align;
+	if (diff != 0) {
+		return value + (align - diff);
+	}
+	return value;
+}
+
 #endif
 
 void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
@@ -388,7 +397,7 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 		mlfs_printf("\x1b[31mFailed to protect log with size %lu offset %lu\n\x1b[0m", log_size, log_start_offset);
 		exit(-1);
 	} else {
-		mlfs_printf("\x1b[33mSuccessfully mapped log with size %lu offset %lu\n\x1b[0m", log_size, log_start_offset);
+		mlfs_printf("\x1b[33mSuccessfully protected log with size %lu offset %lu\n\x1b[0m", log_size, log_start_offset);
 	}
 
 	// Mapping shared device:
@@ -399,13 +408,13 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 
 	// shared_addr = (uint8_t *)mmap(NULL, round_to_alignment(shared_size), PROT_READ | PROT_WRITE,
 	// 	                        MAP_SHARED| MAP_POPULATE, dax_fd, shared_start_offset);
-	ret = mprotect(dax_addr + shared_start_offset, shared_size, PROT_READ);
+	ret = mprotect(dax_addr[dev] + shared_start_offset, shared_size, PROT_READ);
 
 	if (ret == MAP_FAILED) {
-		mlfs_printf("Failed map shared with size %lu offset %lu\n", shared_size, shared_start_offset);
+		mlfs_printf("\x1b[31mFailed protected shared with size %lu offset %lu\x1b[0m\n", shared_size, shared_start_offset);
 		exit(-1);
 	} else {
-		mlfs_printf("\x1b[33m Successfully mapped shared with size %lu offset %lu\n\x1b[0m", shared_size, shared_start_offset);
+		mlfs_printf("\x1b[33m Successfully protected shared with size %lu offset %lu\n\x1b[0m", shared_size, shared_start_offset);
 	}
 
 	demand_map = 1;
