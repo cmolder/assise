@@ -74,12 +74,10 @@ int should_group_bits_apply(uid_t uid, gid_t primary_gid, gid_t inode_gid) {
 }
 
 
-int violates_sticky_bit(uid_t uid, struct inode *parent, struct inode *to_manipulate) {
-        if ((parent->perms & S_ISVTX) == 0)
+int violates_sticky_bit(uid_t uid, uint16_t parent_perms, uint16_t target_perms, uid_t parent_uid, uid_t target_uid) {
+        if ((parent_perms & S_ISVTX) == 0)
                 return 0;
-
-        /* FIXME: check CAP_FOWNER instead of euid != 0 */
-        return uid != 0 && uid != to_manipulate->uid && uid != parent->uid;
+        return !(check_root(uid)) && uid != target_uid && uid != parent_uid;
 }
 
 int permission_check(uid_t inode_uid, gid_t inode_gid, uid_t check_uid, gid_t check_gid, uint16_t perms, enum permcheck_type check)

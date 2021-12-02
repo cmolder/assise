@@ -2356,11 +2356,12 @@ void signal_callback(struct app_context *msg)
 		uint32_t root;
 		int lq;
 		gid_t chown_target_gid;
-		sscanf(msg->data, "|%s |%u|%u|%d|%u|%lu|%u|%u", cmd_hdr, &req_id, &inum, &type, &version, &blknr, &lq, &chown_target_gid);
-		mlfs_debug("received remote lease acquire with inum %u | type[%d] | qualifier[%u] | chown_target_gid[%d]\n", inum, type, lq, chown_target_gid);
+		int chino_parent_inum;
+		sscanf(msg->data, "|%s |%u|%u|%d|%u|%lu|%u|%u|%d", cmd_hdr, &req_id, &inum, &type, &version, &blknr, &lq, &chown_target_gid, &chino_parent_inum);
+		mlfs_debug("received remote lease acquire with inum %u | type[%d] | qualifier[%u] | chown_target_gid[%d] |chino_parent_inum[%d]\n", inum, type, lq, chown_target_gid, chino_parent_inum);
 
 		int mid = -1;
-		int res = modify_lease_state(req_id, inum, type, version, blknr, &mid, lq, chown_target_gid);
+		int res = modify_lease_state(req_id, inum, type, version, blknr, &mid, lq, chown_target_gid, chino_parent_inum);
 
 		// If mid >= 0 due to wrong lease manager
 		// (a) For read/write lease RPCs, return 'invalid lease request' to LibFS
@@ -2377,7 +2378,7 @@ void signal_callback(struct app_context *msg)
 		}
 		else {
 			if(mid > 0)
-				rpc_lease_change(abs(mid), req_id, inum, type, version, blknr, 0, lq, chown_target_gid);
+				rpc_lease_change(abs(mid), req_id, inum, type, version, blknr, 0, lq, chown_target_gid, chino_parent_inum);
 		}	
 		mlfs_printf("Leaving signal callback %d\n", res);
 #else

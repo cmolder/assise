@@ -653,9 +653,22 @@ int mlfs_posix_unlink(const char *filename)
 	}
 
 #if MLFS_LEASE
-	//char parent_path[DIRSIZ];
-	//get_parent_path((char *)filename, parent_path, name);
-	//acquire_lease(dir_inode, LEASE_WRITE, parent_path);
+	char parent_path[DIRSIZ];
+	get_parent_path((char *)filename, parent_path, name);
+
+	// Acquire parent directory write lease
+	int res = acquire_lease(dir_inode->inum, LEASE_WRITE, parent_path);
+	if (res < 0) {
+		mlfs_printf("unlink: access denied for parent directory %s", parent_path);
+		return -EACCES;
+	}
+
+	// Acquire target file/dir write lease
+	res = acquire_lease_(inode->inum, LEASE_WRITE, filename, LEASE_CHINO, -1, dir_inode->inum);
+	if (res < 0) {
+		mlfs_printf("unlink: permission denied for file %s", filename);
+		return -EPERM;
+	}
 #endif
 	
 	log_entry = dir_remove_entry(dir_inode, name, &inode);
@@ -674,6 +687,11 @@ int mlfs_posix_unlink(const char *filename)
 
 	if (log_entry)
 		mlfs_free(log_entry);
+
+#if MLFS_LEASE	
+	mark_lease_revocable(inode->inum);
+	mark_lease_revocable(dir_inode->inum);
+#endif
 
 	return ret;
 }
@@ -732,6 +750,7 @@ int mlfs_posix_ftruncate(int fd, offset_t length)
 
 int mlfs_posix_rename(char *oldpath, char *newpath)
 {
+	struct inode *old_inode;
 	struct inode *old_dir_inode;
 	struct inode *new_dir_inode;
 	struct inode *ip;
@@ -752,6 +771,37 @@ int mlfs_posix_rename(char *oldpath, char *newpath)
 	old_dir_inode = nameiparent((char *)oldpath, old_file_name);
 	new_dir_inode = nameiparent((char *)newpath, new_file_name);
 
+#if MLFS_LEASE
+	// Acquire old directory write lease
+	char old_parent_path[DIRSIZ];
+	get_parent_path((char *)oldpath, old_parent_path, name);
+	int res = acquire_lease(old_dir_inode->inum, LEASE_WRITE, old_parent_path);
+	if (res < 0) {
+		mlfs_printf("rename: access denied for old parent directory %s", old_parent_path);
+		return -EACCES;
+	}
+
+	// Acquire new directory write lease
+	if (new_dir_inode != old_dir_inode) {
+		char new_parent_path[DIRSIZ];
+		get_parent_path((char *)oldpath, new_parent_path, name);
+		res = acquire_lease(new_dir_inode->inum, LEASE_WRITE, new_parent_path);
+		if (res < 0) {
+			mlfs_printf("rename: access denied for new parent directory %s", new_parent_path);
+			return -EPERM;
+		}
+	}
+
+	// Acquire old file write lease
+	int res = acquire_lease_(old_inode->inum, LEASE_WRITE, oldpath, LEASE_CHINO, -1, old_dir_inode->inum);
+	if (res < 0) {
+		mlfs_printf("rename: access denied for %s", oldpath);
+		return -EPERM;
+	}
+
+#endif
+
+	// Unlink the inode at new path, if there's one present.
 	log_replaced = dir_remove_entry(new_dir_inode, new_file_name, &ip);
 	if (ip) {
 		dlookup_del(newpath);
@@ -782,7 +832,9 @@ int mlfs_posix_rename(char *oldpath, char *newpath)
 		mlfs_free(log_new);
 
 	} else {
+		// rename in another directory
 
+#if 0
 #if MLFS_LEASE
 		//char old_parent_path[DIRSIZ];
 		//get_parent_path(oldpath, old_parent_path, old_file_name);
@@ -798,6 +850,7 @@ int mlfs_posix_rename(char *oldpath, char *newpath)
 			mlfs_printf("Denied %d type lease to inode %d (%s)", LEASE_WRITE, new_dir_inode->inum, new_parent_path);
 			return -EACCES;
 		}
+#endif
 #endif
 		// rename across directories
 		dlookup_del(oldpath);
@@ -823,8 +876,9 @@ int mlfs_posix_rename(char *oldpath, char *newpath)
 		commit_log_tx();
 #if MLFS_LEASE
 		m_barrier();
-		//mark_lease_revocable(old_dir_inode->inum);
+		mark_lease_revocable(old_dir_inode->inum);
 		mark_lease_revocable(new_dir_inode->inum);
+		mark_lease_revocable(old_inode->inum);
 #endif
 
 		if (log_replaced)
@@ -959,7 +1013,7 @@ int mlfs_posix_chmod(const char* path, mode_t mode)
 	}
 
 #if MLFS_LEASE
-	if ((ret = acquire_lease_(inode->inum, LEASE_WRITE, path, LEASE_CHMOD, -1)) < 0) {
+	if ((ret = acquire_lease_(inode->inum, LEASE_WRITE, path, LEASE_CHMOD, -1, -1)) < 0) {
 		mlfs_printf("Denied write lease for inum %u (%s)\n", inode->inum, path);
 		mlfs_printf("chmod: Permission denied for %s\n", path);
 		return ret;
@@ -1017,7 +1071,7 @@ int mlfs_posix_chown(const char* path, uid_t owner, gid_t group)
 		lq = LEASE_CHOWN_OWNER; // owner, owner+group checks
 	}
 
-	if ((ret = acquire_lease_(inode->inum, LEASE_WRITE, path, lq, group)) < 0) {
+	if ((ret = acquire_lease_(inode->inum, LEASE_WRITE, path, lq, group, -1)) < 0) {
 		mlfs_printf("Denied write lease for inum %u (%s)\n", inode->inum, path);
 		mlfs_printf("chown: Permission denied for %s\n", path);
 		return ret;
