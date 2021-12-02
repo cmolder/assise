@@ -257,8 +257,12 @@ int demand_map = 0;
 uint8_t * log_addr;
 uint8_t * shared_addr;
 
-uint64_t log_length;
-uint64_t shared_length;
+uint64_t log_size;
+uint64_t shared_size;
+
+uint64_t log_start_offset;
+uint64_t shared_start_offset;
+
 uint64_t align = 2097152UL;
 #endif
 
@@ -356,7 +360,7 @@ void round_to_alignment (uint64_t value) {
 	return value;
 }
 
-void dax_init_cleanup(uint8_t dev) {
+void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 	// Called after LibFS is initialized. Setting up memory permissions 
 	// Now that LibFS is intialized and has read the superblock and such, we need to break up the allocation
 	#ifdef LIBFS
@@ -365,8 +369,8 @@ void dax_init_cleanup(uint8_t dev) {
 
 	// Mapping log device:
 	// May need to round everything to 2MB
-	log_size = disk_sb[dev].nlog) << g_block_size_shift;
-	log_start_offset = disk_sb[g_log_dev].log_start << g_block_size_shift;
+	log_size = (disk_sb[dev].nlog) << g_block_size_shift;
+	log_start_offset = (disk_sb[g_log_dev].log_start) << g_block_size_shift;
 	log_addr = (uint8_t *)mmap(NULL, log_size, PROT_READ | PROT_WRITE,
 		                        MAP_SHARED| MAP_POPULATE, dax_fd, log_start_offset);
 
@@ -377,7 +381,7 @@ void dax_init_cleanup(uint8_t dev) {
 
 	// Mapping shared device:
 	// May need to round everything to 2MB
-	shared_size = disk_sb[dev].nlog) << g_block_size_shift;
+	shared_size = (disk_sb[dev].nlog) << g_block_size_shift;
 	shared_start_offset = disk_sb[g_log_dev].log_start << g_block_size_shift;
 	shared_addr = (uint8_t *)mmap(NULL, log_size, PROT_READ | PROT_WRITE,
 		                        MAP_SHARED| MAP_POPULATE, dax_fd, log_start_offset);
