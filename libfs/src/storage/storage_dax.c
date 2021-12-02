@@ -379,20 +379,24 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 		                        MAP_SHARED| MAP_POPULATE, dax_fd, log_start_offset);
 
 	if (log_addr == MAP_FAILED) {
-		mlfs_printf("Failed to map log with size %lu offset %lu\n", log_size, log_start_offset);
+		mlfs_printf("Failed to map log with size %lu offset %lu\n\x1b[0m", log_size, log_start_offset);
 		exit(-1);
+	} else {
+		mlfs_printf("\x1b[33mSuccessfully mapped log with size %lu offset %lu\n", log_size, log_start_offset);
 	}
 
 	// Mapping shared device:
 	// May need to round everything to 2MB
 	shared_size = (disk_sb[dev].nlog) << g_block_size_shift;
 	shared_start_offset = disk_sb[g_log_dev].log_start << g_block_size_shift;
-	shared_addr = (uint8_t *)mmap(NULL, log_size, PROT_READ | PROT_WRITE,
-		                        MAP_SHARED| MAP_POPULATE, dax_fd, log_start_offset);
+	shared_addr = (uint8_t *)mmap(NULL, shared_size, PROT_READ | PROT_WRITE,
+		                        MAP_SHARED| MAP_POPULATE, dax_fd, shared_start_offset);
 
 	if (shared_addr == MAP_FAILED) {
-		mlfs_printf("Failed to map shared with size %lu offset %lu\n", shared_size, shared_start_offset);
+		mlfs_printf("Failed map shared with size %lu offset %lu\n", shared_size, shared_start_offset);
 		exit(-1);
+	} else {
+		mlfs_printf("\x1b[33m Successfully mapped shared with size %lu offset %lu\n\x1b[0m", shared_size, shared_start_offset);
 	}
 
 	demand_map = 1;
