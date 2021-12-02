@@ -368,18 +368,24 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 	// Called after LibFS is initialized. Setting up memory permissions 
 	// Now that LibFS is intialized and has read the superblock and such, we need to break up the allocation
 	#ifdef LIBFS
-	mlfs_printf("Unmapping nvm for device %d\n", dev);
-	munmap(dax_addr[dev], dev_size[dev]);
+	mlfs_printf("Setting permissions for device %d\n", dev);
+	int ret = mprotect(dax_addr[dev], dev_size[dev], PROT_NONE);
+	if (ret == -1) {
+		mlfs_printf("\x1b[31mFailed to protect region %s\n\x1b[0m", "");
+		exit(-1);
+	}
+	// munmap(dax_addr[dev], dev_size[dev]);
 
 	// Mapping log device:
 	// May need to round everything to 2MB
 	log_size = (disk_sb[dev].nlog) << g_block_size_shift;
 	log_start_offset = (disk_sb[g_log_dev].log_start) << g_block_size_shift;
-	log_addr = (uint8_t *)mmap(NULL, log_size, PROT_READ | PROT_WRITE,
-		                        MAP_SHARED| MAP_POPULATE, dax_fd, log_start_offset);
+	int ret = mprotect(dax_addr[dev] + log_start_offset, log_size, PROT_READ | PROT_WRITE);
+	// log_addr = (uint8_t *)mmap(NULL, log_size, PROT_READ | PROT_WRITE,
+		                        // MAP_SHARED| MAP_POPULATE, dax_fd, log_start_offset);
 
-	if (log_addr == MAP_FAILED) {
-		mlfs_printf("Failed to map log with size %lu offset %lu\n", log_size, log_start_offset);
+	if (ret == -1) {
+		mlfs_printf("\x1b[31mFailed to protect log with size %lu offset %lu\n\x1b[0m", log_size, log_start_offset);
 		exit(-1);
 	} else {
 		mlfs_printf("\x1b[33mSuccessfully mapped log with size %lu offset %lu\n\x1b[0m", log_size, log_start_offset);
@@ -388,11 +394,14 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 	// Mapping shared device:
 	// May need to round everything to 2MB
 	shared_start_offset = 0;
-	shared_size = (disk_sb[dev].datablock_start - disk_sb[dev].inode_start << g_block_size_shift);
-	shared_addr = (uint8_t *)mmap(NULL, round_to_alignment(shared_size), PROT_READ | PROT_WRITE,
-		                        MAP_SHARED| MAP_POPULATE, dax_fd, shared_start_offset);
+	// shared_size = (disk_sb[dev].datablock_start - disk_sb[dev].inode_start << g_block_size_shift);
+	shared_size = (disk_sb[dev].log_start << g_block_size_shift);
 
-	if (shared_addr == MAP_FAILED) {
+	// shared_addr = (uint8_t *)mmap(NULL, round_to_alignment(shared_size), PROT_READ | PROT_WRITE,
+	// 	                        MAP_SHARED| MAP_POPULATE, dax_fd, shared_start_offset);
+	ret = mprotect(dax_addr + shared_start_offset, shared_size);
+
+	if (ret == MAP_FAILED) {
 		mlfs_printf("Failed map shared with size %lu offset %lu\n", shared_size, shared_start_offset);
 		exit(-1);
 	} else {
@@ -403,25 +412,25 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 	#endif
 }
 
-#ifdef LIBFS
-addr_t get_address(addr_t blockno) {
-	addr_t offset = blockno * g_block_size_bytes;
+// #ifdef LIBFS
+// addr_t get_address(addr_t blockno) {
+// 	addr_t offset = blockno * g_block_size_bytes;
 	
-	// Check to see if it's in shared
-	if (offset >= shared_start_offset && offset < shared_size) {
+// 	// Check to see if it's in shared
+// 	if (offset >= shared_start_offset && offset < shared_size) {
 
-		return shared_addr + (offset - shared_start_offset);
-	}
+// 		return shared_addr + (offset - shared_start_offset);
+// 	}
 
-	// Check to see if it's in log
-	if (offset >= log_start_offset && offset < log_size) {
+// 	// Check to see if it's in log
+// 	if (offset >= log_start_offset && offset < log_size) {
 
-		return log_addr + (offset - log_start_offset);
-	}
+// 		return log_addr + (offset - log_start_offset);
+// 	}
 
-	return NULL;
-}
-#endif
+// 	return NULL;
+// }
+// #endif
 
 int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 {
@@ -440,10 +449,11 @@ int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 
 		// Determine which region we are reading from
 
-		addr = get_address(blockno);
-		if (addr == NULL) {
-			mlfs_printf("\x1B[31mRead at %d appears invalid\n\x1B[0m", blockno);
-		}
+		// addr = get_address(blockno);
+		// if (addr == NULL) {
+		// 	mlfs_printf("\x1B[31mRead at %d appears invalid\n\x1B[0m", blockno);
+		// }
+		addr = dax_addr[dev] + (blockno * g_block_size_bytes);
 
 	} else {
 		addr = dax_addr[dev] + (blockno * g_block_size_bytes);
@@ -488,10 +498,12 @@ int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offse
 
 		// Determine which region we are reading from
 
-		addr = get_address(blockno);
-		if (addr == NULL) {
-			mlfs_printf("\x1B[31mRead at %d appears invalid\n\x1B[0m", blockno);
-		}
+		// addr = get_address(blockno);
+		// if (addr == NULL) {
+		// 	mlfs_printf("\x1B[31mRead at %d appears invalid\n\x1B[0m", blockno);
+		// }
+
+		addr = dax_addr[dev] + (blockno * g_block_size_bytes);
 
 	} else {
 		addr = dax_addr[dev] + (blockno * g_block_size_bytes);
@@ -541,10 +553,12 @@ int dax_write(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 
 		// Determine which region we are reading from
 
-		addr = get_address(blockno);
-		if (addr == NULL) {
-			mlfs_printf("\x1B[31mRead at %d appears invalid\n\x1B[0m", blockno);
-		}
+		// addr = get_address(blockno);
+		// if (addr == NULL) {
+		// 	mlfs_printf("\x1B[31mRead at %d appears invalid\n\x1B[0m", blockno);
+		// }
+
+		addr = dax_addr[dev] + (blockno * g_block_size_bytes);
 
 	} else {
 		addr = dax_addr[dev] + (blockno << g_block_size_shift);
@@ -593,10 +607,11 @@ int dax_write_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offs
 
 		// Determine which region we are reading from
 
-		addr = get_address(blockno);
-		if (addr == NULL) {
-			mlfs_printf("\x1B[31mRead at %d appears invalid\n\x1B[0m", blockno);
-		}
+		// addr = get_address(blockno);
+		// if (addr == NULL) {
+		// 	mlfs_printf("\x1B[31mRead at %d appears invalid\n\x1B[0m", blockno);
+		// }
+		addr = dax_addr[dev] + (blockno * g_block_size_bytes) + offset;
 
 	} else {
 		addr = dax_addr[dev] + (blockno << g_block_size_shift)  + offset;
