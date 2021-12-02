@@ -380,7 +380,7 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 	// May need to round everything to 2MB
 	log_size = (disk_sb[dev].nlog) << g_block_size_shift;
 	log_start_offset = (disk_sb[g_log_dev].log_start) << g_block_size_shift;
-	int ret = mprotect(dax_addr[dev] + log_start_offset, log_size, PROT_READ | PROT_WRITE);
+	ret = mprotect(dax_addr[dev] + log_start_offset, log_size, PROT_READ | PROT_WRITE);
 	// log_addr = (uint8_t *)mmap(NULL, log_size, PROT_READ | PROT_WRITE,
 		                        // MAP_SHARED| MAP_POPULATE, dax_fd, log_start_offset);
 
@@ -399,7 +399,7 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 
 	// shared_addr = (uint8_t *)mmap(NULL, round_to_alignment(shared_size), PROT_READ | PROT_WRITE,
 	// 	                        MAP_SHARED| MAP_POPULATE, dax_fd, shared_start_offset);
-	ret = mprotect(dax_addr + shared_start_offset, shared_size);
+	ret = mprotect(dax_addr + shared_start_offset, shared_size, PROT_READ);
 
 	if (ret == MAP_FAILED) {
 		mlfs_printf("Failed map shared with size %lu offset %lu\n", shared_size, shared_start_offset);
