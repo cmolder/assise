@@ -352,7 +352,7 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 	return dax_addr[dev];
 }
 
-void round_to_alignment (uint64_t value) {
+uint64_t round_to_alignment (uint64_t value) {
 	uint64_t diff = value % align;
 	if (diff != 0) {
 		return value + (align - diff);

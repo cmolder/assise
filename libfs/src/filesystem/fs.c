@@ -479,7 +479,7 @@ void init_fs(void)
 		read_root_inode();
 
 		mlfs_info("LibFS is initialized on dev %d\n", g_log_dev);
-		dax_init_cleanup(1);
+		dax_init_cleanup(1, disk_sb);
 
 		perf_profile = getenv("MLFS_PROFILE");
 

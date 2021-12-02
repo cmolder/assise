@@ -2,6 +2,7 @@
 #define _STORAGE_H_
 
 #include "global/global.h"
+#include "filesystem/shared.h"
 
 // Interface for different storage engines.
 struct storage_operations
