@@ -1164,6 +1164,24 @@ void stati(struct inode *ip, struct stat *st)
 	st->st_atime = (time_t)ip->atime.tv_sec;
 }
 
+uint64_t round_up_to_alignment (uint64_t value) {
+	uint64_t align = 2097152UL;
+	uint64_t diff = value % align;
+	if (diff != 0) {
+		return value + (align - diff);
+	}
+	return value;
+}
+
+uint64_t round_down_to_alignment (uint64_t value) {
+	uint64_t align = 2097152UL;
+	uint64_t diff = value % align;
+	if (diff != 0) {
+		return value - diff;
+	}
+	return value;
+}
+
 int set_shared_pages_readable(struct inode *ip) {
 	// struct file *f;
 	int ret;
@@ -1192,10 +1210,12 @@ int set_shared_pages_readable(struct inode *ip) {
 	blk_base = bmap_req.block_no;
 	blk_found = bmap_req.blk_count_found;
 
-	int protect = mprotect(g_bdev[g_root_dev]->map_base_addr + blk_base, blk_found, PROT_READ);
+	int protect = mprotect(round_down_to_alignment(g_bdev[g_root_dev]->map_base_addr + blk_base), round_up_to_alignment(blk_found), PROT_READ);
 	if (protect == -1) {
 		mlfs_printf("\x1b[31mFailed to protect region %s\n\x1b[0m", "");
 		return -1;
+	} else {
+		mlfs_printf("\x1b[33mSuccessfully protected region %s\n\x1b[0m", "");
 	}
 
 	while (blk_found < blk_count) {
@@ -1213,6 +1233,8 @@ int set_shared_pages_readable(struct inode *ip) {
 		if (protect == -1) {
 			mlfs_printf("\x1b[31mFailed to protect region %s\n\x1b[0m", "");
 			return -1;
+		} else {
+			mlfs_printf("\x1b[33mSuccessfully protected region %s\n\x1b[0m", "");
 		}
 		// if (blk_base + blk_found != bmap_req.block_no) {
 		// 	mlfs_debug("mmap: non-contiguous extent at block %lu, file block %lu\n", bmap_req.block_no, blk_found);
