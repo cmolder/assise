@@ -398,7 +398,7 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 	// May need to round everything to 2MB
 	log_size = (disk_sb[dev].nlog) << g_block_size_shift;
 	log_start_offset = (disk_sb[g_log_dev].log_start) << g_block_size_shift;
-	ret = mprotect(pg_round_down(dax_addr[dev] + log_start_offset), pg_round_up(log_size), PROT_READ | PROT_WRITE);
+	ret = mprotect((void * )pg_round_down(dax_addr[dev] + log_start_offset), pg_round_up(log_size), PROT_READ | PROT_WRITE);
 	// log_addr = (uint8_t *)mmap(NULL, log_size, PROT_READ | PROT_WRITE,
 		                        // MAP_SHARED| MAP_POPULATE, dax_fd, log_start_offset);
 
@@ -419,7 +419,7 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 
 	// shared_addr = (uint8_t *)mmap(NULL, round_to_alignment(shared_size), PROT_READ | PROT_WRITE,
 	// 	                        MAP_SHARED| MAP_POPULATE, dax_fd, shared_start_offset);
-	ret = mprotect(dax_addr[dev] + shared_start_offset, pg_round_up(shared_size), PROT_READ);
+	ret = mprotect((void * )pg_round_down(dax_addr[dev]), pg_round_up(shared_size), PROT_READ);
 
 	if (ret == -1) {
 		mlfs_printf("\x1b[31mFailed protected shared with size %lu offset %lu errno %s\x1b[0m\n", shared_size, shared_start_offset, strerror(errno));
