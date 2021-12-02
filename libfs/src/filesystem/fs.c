@@ -1250,7 +1250,7 @@ int set_shared_pages_readable(struct inode *ip) {
 
 
 // Maybe need to do some conflict checking here
-int revoke_shared_pages_readable(struct inode *ip) {
+int revoke_shared_pages_readable(int inum) {
 	// struct file *f;
 	int ret;
 	uint64_t blk_count;
