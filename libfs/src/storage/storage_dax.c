@@ -364,9 +364,17 @@ uint64_t round_to_alignment (uint64_t value) {
 }
 
 uint64_t pg_round_down (uint64_t value) {
-	uint64_t diff = value % align;
+	uint64_t diff = value % pgsize;
 	if (diff != 0) {
-		return value + (align - diff);
+		return value - diff;
+	}
+	return value;
+}
+
+uint64_t pg_round_up (uint64_t value) {
+	uint64_t diff = value % pgsize;
+	if (diff != 0) {
+		return value + (pgsize - diff);
 	}
 	return value;
 }
@@ -389,7 +397,7 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 	// May need to round everything to 2MB
 	log_size = (disk_sb[dev].nlog) << g_block_size_shift;
 	log_start_offset = (disk_sb[g_log_dev].log_start) << g_block_size_shift;
-	ret = mprotect(dax_addr[dev] + log_start_offset, log_size, PROT_READ | PROT_WRITE);
+	ret = mprotect(pg_round_down(dax_addr[dev] + log_start_offset), log_size, PROT_READ | PROT_WRITE);
 	// log_addr = (uint8_t *)mmap(NULL, log_size, PROT_READ | PROT_WRITE,
 		                        // MAP_SHARED| MAP_POPULATE, dax_fd, log_start_offset);
 
@@ -412,7 +420,7 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 	// 	                        MAP_SHARED| MAP_POPULATE, dax_fd, shared_start_offset);
 	ret = mprotect(dax_addr[dev] + shared_start_offset, shared_size, PROT_READ);
 
-	if (ret == MAP_FAILED) {
+	if (ret == -1) {
 		mlfs_printf("\x1b[31mFailed protected shared with size %lu offset %lu\x1b[0m\n", shared_size, shared_start_offset);
 		exit(-1);
 	} else {
