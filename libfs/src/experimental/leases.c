@@ -345,7 +345,11 @@ int revoke_lease(int sockfd, uint32_t seq_n, uint32_t inum)
 	if (!ls)
 		panic("failed to allocate lease\n");
 
-	pthread_spin_lock(&ls->mutex); //never calls this if we're using shared locks (causes a deadlock)
+	mlfs_printf("Acquiring lock %s\n", "");
+
+	//pthread_spin_lock(&ls->mutex); //never calls this if we're using shared locks (causes a deadlock)
+
+	mlfs_printf("Done acquiring lock %s\n", "");
 
 	if(ls->hid != g_self_id)
 		panic("kernfs trying to revoke an unowned lease\n");
@@ -361,17 +365,21 @@ int revoke_lease(int sockfd, uint32_t seq_n, uint32_t inum)
 				goto retry;
 		}
 #else
+		mlfs_printf("Spinning %s\n", "");
 		cpu_relax();
+		ls->holders = 0;
 #endif
 	}
 
 	//rpc_lease_flush_response(sockfd, seq_n, inum, ls->lversion, ls->lblock);
+	mlfs_printf("Doing rpc lease change %s\n", "");
 	rpc_lease_change(ls->mid, g_self_id, ls->inum, LEASE_FREE, ls->lversion, ls->lblock, 0, 0, 0);
+	mlfs_printf("Finished with rpc lease change %s\n", "");
 
 	ls->state = LEASE_FREE;
 	ls->hid = ls->mid;
 
-	pthread_spin_unlock(&ls->mutex);
+	//pthread_spin_unlock(&ls->mutex);
 
 	mlfs_printf("lease revoked for inum %u\n", inum);
 }
@@ -414,7 +422,7 @@ int mark_lease_revocable(uint32_t inum)
 
 	if(ls->holders == 1) {
 #ifndef LAZY_SURRENDER
-			rpc_lease_change(ls->mid, g_self_id, ls->inum, LEASE_FREE, ls->lversion, ls->lblock, 0, 0);
+			rpc_lease_change(ls->mid, g_self_id, ls->inum, LEASE_FREE, ls->lversion, ls->lblock, 0, 0, 0);
 			ls->state = LEASE_FREE;		
 #endif
 

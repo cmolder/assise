@@ -1465,7 +1465,7 @@ void signal_callback(struct app_context *msg)
 		sscanf(msg->data, "|%s |%u|%d", cmd_hdr, &inum, &digest);
 
 		revoke_lease(msg->sockfd, msg->id, inum);
-
+		mlfs_printf("Finished revoking lease %s\n", "");
 #if 1
 		if(digest) {
 			// wait until the digest_thread finishes job.
