@@ -403,6 +403,7 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 	#endif
 }
 
+#ifdef LIBFS
 addr_t get_address(addr_t blockno) {
 	addr_t offset = blockno * g_block_size_bytes;
 	
@@ -420,6 +421,7 @@ addr_t get_address(addr_t blockno) {
 
 	return NULL;
 }
+#endif
 
 int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 {
