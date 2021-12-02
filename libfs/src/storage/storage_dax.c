@@ -352,6 +352,8 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 	return dax_addr[dev];
 }
 
+#ifdef LIBFS
+
 uint64_t round_to_alignment (uint64_t value) {
 	uint64_t diff = value % align;
 	if (diff != 0) {
@@ -359,6 +361,8 @@ uint64_t round_to_alignment (uint64_t value) {
 	}
 	return value;
 }
+
+#endif
 
 void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 	// Called after LibFS is initialized. Setting up memory permissions 
