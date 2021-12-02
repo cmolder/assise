@@ -388,7 +388,7 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 	// Mapping shared device:
 	// May need to round everything to 2MB
 	shared_start_offset = 0;
-	shared_size = (disk_sb[dev].datablock_start - disk_sb[dev].inode_start << g_block_size_shift);
+	shared_size = round_to_alignment((disk_sb[dev].datablock_start - disk_sb[dev].inode_start << g_block_size_shift));
 	shared_addr = (uint8_t *)mmap(NULL, shared_size, PROT_READ | PROT_WRITE,
 		                        MAP_SHARED| MAP_POPULATE, dax_fd, shared_start_offset);
 
