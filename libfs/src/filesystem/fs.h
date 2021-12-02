@@ -710,6 +710,8 @@ int check_log_invalidation(struct fcache_block *_fcache_block);
 int get_dirent(struct inode *dir_inode, struct mlfs_dirent *buf, offset_t offset);
 void show_libfs_stats(void);
 
+int set_shared_pages_readable(struct inode *ip);
+
 //APIs for debugging.
 uint32_t dbg_get_iblkno(uint32_t inum);
 void dbg_dump_inode(uint8_t dev, uint32_t inum);

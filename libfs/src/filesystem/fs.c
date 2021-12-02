@@ -1164,6 +1164,68 @@ void stati(struct inode *ip, struct stat *st)
 	st->st_atime = (time_t)ip->atime.tv_sec;
 }
 
+int set_shared_pages_readable(struct inode *ip) {
+	// struct file *f;
+	int ret;
+	uint64_t blk_count;
+	uint64_t blk_found;
+	uint64_t blk_base;
+	bmap_req_t bmap_req;
+
+	mlfs_printf("Marking file pages as readable for inode %d\n", ip->inum);
+
+	blk_count = ip->size >> g_block_size_shift;
+	mlfs_debug("blk_count = %lu, size = %lu\n", blk_count, ip->size);
+	blk_found = 0;
+
+	bmap_req.start_offset = 0;
+	bmap_req.blk_count = blk_count;
+	bmap_req.blk_count_found = 0;
+	ret = bmap(ip, &bmap_req);
+	if (ret == -EIO || bmap_req.dev != g_root_dev) {
+		mlfs_printf("set_shared_pages_readable: bad extent, error %d\n", ret);
+		return -1;
+	}
+	mlfs_debug("first extent: block %lu, length %u\n", bmap_req.block_no, bmap_req.blk_count_found);
+
+
+	blk_base = bmap_req.block_no;
+	blk_found = bmap_req.blk_count_found;
+
+	int protect = mprotect(g_bdev[g_root_dev]->map_base_addr + blk_base, blk_found, PROT_READ);
+	if (protect == -1) {
+		mlfs_printf("\x1b[31mFailed to protect region %s\n\x1b[0m", "");
+		return -1;
+	}
+
+	while (blk_found < blk_count) {
+		bmap_req.blk_count_found = 0;
+		bmap_req.blk_count = blk_count - blk_found;
+		bmap_req.start_offset = blk_found << g_block_size_shift;
+		ret = bmap(ip, &bmap_req);
+		if (ret == -EIO || bmap_req.dev != g_root_dev) {
+                	mlfs_debug("mmap: bad extent, error %d\n", ret);
+                	return -1;
+        	}
+		mlfs_debug("next extent: block %lu, length %u\n", bmap_req.block_no, bmap_req.blk_count_found);
+
+		protect = mprotect(bmap_req.block_no, bmap_req.blk_count_found, PROT_READ);
+		if (protect == -1) {
+			mlfs_printf("\x1b[31mFailed to protect region %s\n\x1b[0m", "");
+			return -1;
+		}
+		// if (blk_base + blk_found != bmap_req.block_no) {
+		// 	mlfs_debug("mmap: non-contiguous extent at block %lu, file block %lu\n", bmap_req.block_no, blk_found);
+		// 	return NULL;
+		// }
+		blk_found += bmap_req.blk_count_found;
+	}
+
+	return 0;
+
+	// return (void *) ((blk_base << g_block_size_shift) + g_bdev[g_root_dev]->map_base_addr);
+}
+
 // TODO: Now, eviction is simply discarding. Extend this function
 // to evict data to the update log.
 static void evict_read_cache(struct inode *inode, uint32_t n_entries_to_evict)

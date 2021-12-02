@@ -473,8 +473,8 @@ retry:
 		// received invalid response
 		else if(ls->errcode == LEASE_INVALID) {
 			ls->errcode = LEASE_NOERR; // clear error code
-			// goto retry;
-			return -EACCES;
+			goto retry;
+			// return -EACCES;
 		}
 
 		ls->holders++;
@@ -531,6 +531,13 @@ retry:
 		sync_inode_from_dinode(ip, &dip);
 
 		iunlock(ip);
+
+		#ifdef MLFS_PERMISSIONS
+			int ret = set_shared_pages_readable(ip);
+			if (ret == -1) {
+				// revoke lease or something
+			}
+		#endif
 	}
 #endif
 

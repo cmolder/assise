@@ -404,7 +404,9 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 	// May need to round everything to 2MB
 	shared_start_offset = 0;
 	// shared_size = (disk_sb[dev].datablock_start - disk_sb[dev].inode_start << g_block_size_shift);
-	shared_size = (disk_sb[dev].log_start << g_block_size_shift);
+
+	// Map up to datablock start as read
+	shared_size = (disk_sb[dev].datablock_start << g_block_size_shift);
 
 	// shared_addr = (uint8_t *)mmap(NULL, round_to_alignment(shared_size), PROT_READ | PROT_WRITE,
 	// 	                        MAP_SHARED| MAP_POPULATE, dax_fd, shared_start_offset);
@@ -446,31 +448,16 @@ int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 	mlfs_printf("Reading dev %d blockno %d\n", dev, blockno);
 
 	addr_t addr;
-	#ifdef LIBFS
-	if (demand_map) {
-		// dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
-		//                         MAP_SHARED, dax_fd, 0);
-		// mlfs_printf("Demand mapping for block %d\n", blockno);
-		// if (dax_addr[dev] == MAP_FAILED) {
-		// 	perror("cannot map file system file");
-		// 	exit(-1);
-		// }
-
-		// Determine which region we are reading from
-
-		// addr = get_address(blockno);
-		// if (addr == NULL) {
-		// 	mlfs_printf("\x1B[31mRead at %d appears invalid\n\x1B[0m", blockno);
-		// }
-		addr = dax_addr[dev] + (blockno * g_block_size_bytes);
-
-	} else {
-		addr = dax_addr[dev] + (blockno * g_block_size_bytes);
-	}
-	#else
+	// #ifdef LIBFS
+	// if (demand_map) {
+	// 	addr = dax_addr[dev] + (blockno * g_block_size_bytes);
+	// } else {
+	// 	addr = dax_addr[dev] + (blockno * g_block_size_bytes);
+	// }
+	// #else
 	// Kernfs - just use dax_addr
-		addr = dax_addr[dev] + (blockno * g_block_size_bytes);
-	#endif
+	addr = dax_addr[dev] + (blockno * g_block_size_bytes);
+	// #endif
 
 	memmove(buf, addr, io_size);
 
@@ -479,12 +466,12 @@ int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 	mlfs_muffled("read (aligned) dev %u, block number %lu, address %lu, size %u\n",
 			dev, blockno, blockno * g_block_size_bytes, io_size);
 
-	#ifdef LIBFS
-	if (demand_map) {
-		// munmap(dax_addr[dev], dev_size[dev]);
-		// mlfs_printf("Unmapping %d\n", blockno);
-	}
-	#endif
+	// #ifdef LIBFS
+	// if (demand_map) {
+	// 	// munmap(dax_addr[dev], dev_size[dev]);
+	// 	// mlfs_printf("Unmapping %d\n", blockno);
+	// }
+	// #endif
 
 	return io_size;
 }
@@ -494,33 +481,33 @@ int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offse
 {
 	mlfs_printf("Reading unaligned dev %d blockno %d\n", dev, blockno);
 
-	addr_t addr;
-	#ifdef LIBFS
-	if (demand_map) {
-		// dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
-		//                         MAP_SHARED, dax_fd, 0);
-		// mlfs_printf("Demand mapping for block %d\n", blockno);
-		// if (dax_addr[dev] == MAP_FAILED) {
-		// 	perror("cannot map file system file");
-		// 	exit(-1);
-		// }
+	addr_t addr = dax_addr[dev] + (blockno * g_block_size_bytes);;
+	// #ifdef LIBFS
+	// if (demand_map) {
+	// 	// dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+	// 	//                         MAP_SHARED, dax_fd, 0);
+	// 	// mlfs_printf("Demand mapping for block %d\n", blockno);
+	// 	// if (dax_addr[dev] == MAP_FAILED) {
+	// 	// 	perror("cannot map file system file");
+	// 	// 	exit(-1);
+	// 	// }
 
-		// Determine which region we are reading from
+	// 	// Determine which region we are reading from
 
-		// addr = get_address(blockno);
-		// if (addr == NULL) {
-		// 	mlfs_printf("\x1B[31mRead at %d appears invalid\n\x1B[0m", blockno);
-		// }
+	// 	// addr = get_address(blockno);
+	// 	// if (addr == NULL) {
+	// 	// 	mlfs_printf("\x1B[31mRead at %d appears invalid\n\x1B[0m", blockno);
+	// 	// }
 
-		addr = dax_addr[dev] + (blockno * g_block_size_bytes);
+	// 	addr = dax_addr[dev] + (blockno * g_block_size_bytes);
 
-	} else {
-		addr = dax_addr[dev] + (blockno * g_block_size_bytes);
-	}
-	#else
-	// Kernfs - just use dax_addr
-		addr = dax_addr[dev] + (blockno * g_block_size_bytes);
-	#endif
+	// } else {
+	// 	addr = dax_addr[dev] + (blockno * g_block_size_bytes);
+	// }
+	// #else
+	// // Kernfs - just use dax_addr
+	// 	addr = dax_addr[dev] + (blockno * g_block_size_bytes);
+	// #endif
 
 	//copy and flush data to pmem.
 	memmove(buf, addr + offset, 
@@ -531,12 +518,12 @@ int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offse
 	mlfs_muffled("read (unaligned) dev %u, block number %lu, address %lu size %u\n", 
 			dev, blockno, (blockno * g_block_size_bytes) + offset, io_size);
 
-	#ifdef LIBFS
-	if (demand_map) {
-		// munmap(dax_addr[dev], dev_size[dev]);
-		// mlfs_printf("unmapping %d\n", blockno);
-	}
-	#endif
+	// #ifdef LIBFS
+	// if (demand_map) {
+	// 	// munmap(dax_addr[dev], dev_size[dev]);
+	// 	// mlfs_printf("unmapping %d\n", blockno);
+	// }
+	// #endif
 
 	return io_size;
 }
@@ -548,34 +535,34 @@ int dax_write(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 {
 	mlfs_printf("Writing dev %d blockno %d\n", dev, blockno);
 
-	addr_t addr;
+	addr_t addr = dax_addr[dev] + (blockno << g_block_size_shift);
 
-	#ifdef LIBFS
-	if (demand_map) {
-		// dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
-		//                         MAP_SHARED, dax_fd, 0);
-		// mlfs_printf("Demand mapping for block %d\n", blockno);
-		// if (dax_addr[dev] == MAP_FAILED) {
-		// 	perror("cannot map file system file");
-		// 	exit(-1);
-		// }
+	// #ifdef LIBFS
+	// if (demand_map) {
+	// 	// dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+	// 	//                         MAP_SHARED, dax_fd, 0);
+	// 	// mlfs_printf("Demand mapping for block %d\n", blockno);
+	// 	// if (dax_addr[dev] == MAP_FAILED) {
+	// 	// 	perror("cannot map file system file");
+	// 	// 	exit(-1);
+	// 	// }
 
-		// Determine which region we are reading from
+	// 	// Determine which region we are reading from
 
-		// addr = get_address(blockno);
-		// if (addr == NULL) {
-		// 	mlfs_printf("\x1B[31mRead at %d appears invalid\n\x1B[0m", blockno);
-		// }
+	// 	// addr = get_address(blockno);
+	// 	// if (addr == NULL) {
+	// 	// 	mlfs_printf("\x1B[31mRead at %d appears invalid\n\x1B[0m", blockno);
+	// 	// }
 
-		addr = dax_addr[dev] + (blockno * g_block_size_bytes);
+	// 	addr = dax_addr[dev] + (blockno * g_block_size_bytes);
 
-	} else {
-		addr = dax_addr[dev] + (blockno << g_block_size_shift);
-	}
-	#else
-	// Kernfs - just use dax_addr
-		addr = dax_addr[dev] + (blockno << g_block_size_shift);
-	#endif
+	// } else {
+	// 	addr = dax_addr[dev] + (blockno << g_block_size_shift);
+	// }
+	// #else
+	// // Kernfs - just use dax_addr
+	// 	addr = dax_addr[dev] + (blockno << g_block_size_shift);
+	// #endif
 
 
 	//copy and flush data to pmem.
@@ -602,33 +589,33 @@ int dax_write_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offs
 {
 	mlfs_printf("Writing unaligned %d blockno %d\n", dev, blockno);
 
-	addr_t addr;
+	addr_t addr = dax_addr[dev] + (blockno << g_block_size_shift) + offset;
 
-	#ifdef LIBFS
-	if (demand_map) {
-		// dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
-		//                         MAP_SHARED, dax_fd, 0);
-		// mlfs_printf("Demand mapping for block %d\n", blockno);
-		// if (dax_addr[dev] == MAP_FAILED) {
-		// 	perror("cannot map file system file");
-		// 	exit(-1);
-		// }
+	// #ifdef LIBFS
+	// if (demand_map) {
+	// 	// dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+	// 	//                         MAP_SHARED, dax_fd, 0);
+	// 	// mlfs_printf("Demand mapping for block %d\n", blockno);
+	// 	// if (dax_addr[dev] == MAP_FAILED) {
+	// 	// 	perror("cannot map file system file");
+	// 	// 	exit(-1);
+	// 	// }
 
-		// Determine which region we are reading from
+	// 	// Determine which region we are reading from
 
-		// addr = get_address(blockno);
-		// if (addr == NULL) {
-		// 	mlfs_printf("\x1B[31mRead at %d appears invalid\n\x1B[0m", blockno);
-		// }
-		addr = dax_addr[dev] + (blockno * g_block_size_bytes) + offset;
+	// 	// addr = get_address(blockno);
+	// 	// if (addr == NULL) {
+	// 	// 	mlfs_printf("\x1B[31mRead at %d appears invalid\n\x1B[0m", blockno);
+	// 	// }
+	// 	addr = dax_addr[dev] + (blockno * g_block_size_bytes) + offset;
 
-	} else {
-		addr = dax_addr[dev] + (blockno << g_block_size_shift)  + offset;
-	}
-	#else
-	// Kernfs - just use dax_addr
-		addr = dax_addr[dev] + (blockno << g_block_size_shift) + offset;
-	#endif
+	// } else {
+	// 	addr = dax_addr[dev] + (blockno << g_block_size_shift)  + offset;
+	// }
+	// #else
+	// // Kernfs - just use dax_addr
+	// 	addr = dax_addr[dev] + (blockno << g_block_size_shift) + offset;
+	// #endif
 
 	// addr_t addr = (addr_t)dax_addr[dev] + (blockno << g_block_size_shift) + offset;
 
@@ -642,10 +629,10 @@ int dax_write_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offs
 	mlfs_muffled("write block number %lu, address %lu size %u\n", 
 			blockno, (blockno * g_block_size_bytes) + offset, io_size);
 
-	#ifdef LIBFS
-	// if (demand_map)
-		// munmap(dax_addr[dev], dev_size[dev]);
-	#endif
+	// #ifdef LIBFS
+	// // if (demand_map)
+	// 	// munmap(dax_addr[dev], dev_size[dev]);
+	// #endif
 
 	return io_size;
 }
@@ -829,10 +816,10 @@ void ioat_exit(int dev)
 
 int dax_write_opt(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 {
-	#ifdef LIBFS
-	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
-		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
-	#endif
+	// #ifdef LIBFS
+	// dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+	// 	                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+	// #endif
 	
 	addr_t addr = (addr_t)dax_addr[dev] + (blockno << g_block_size_shift);
 
@@ -852,9 +839,9 @@ int dax_write_opt(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 	mlfs_muffled("write(opt) block number %lu, address %lu size %u\n", 
 			blockno, (blockno * g_block_size_bytes), io_size);
 
-	#ifdef LIBFS
-	munmap(dax_addr[dev], dev_size[dev]);
-	#endif
+	// #ifdef LIBFS
+	// munmap(dax_addr[dev], dev_size[dev]);
+	// #endif
 
 	return io_size;
 }
@@ -862,10 +849,10 @@ int dax_write_opt(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 int dax_write_opt_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offset, 
 		uint32_t io_size)
 {
-	#ifdef LIBFS
-	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
-		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
-	#endif
+	// #ifdef LIBFS
+	// dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+	// 	                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+	// #endif
 
 	addr_t addr = (addr_t)dax_addr[dev] + (blockno << g_block_size_shift) + offset;
 
@@ -886,9 +873,9 @@ int dax_write_opt_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t 
 	mlfs_muffled("write(opt) block number %lu, address %lu size %u\n", 
 			blockno, (blockno * g_block_size_bytes) + offset, io_size);
 
-	#ifdef LIBFS
-	munmap(dax_addr[dev], dev_size[dev]);
-	#endif
+	// #ifdef LIBFS
+	// munmap(dax_addr[dev], dev_size[dev]);
+	// #endif
 
 	return io_size;
 }
@@ -930,16 +917,16 @@ int dax_commit(uint8_t dev)
 
 int dax_erase(uint8_t dev, addr_t blockno, uint32_t io_size)
 {
-	#ifdef LIBFS
-	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
-		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
-	#endif
+	// #ifdef LIBFS
+	// dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+	// 	                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+	// #endif
 
 	memset(dax_addr[dev] + (blockno * g_block_size_bytes), 0, io_size);
 
-	#ifdef LIBFS
-	munmap(dax_addr[dev], dev_size[dev]);
-	#endif
+	// #ifdef LIBFS
+	// munmap(dax_addr[dev], dev_size[dev]);
+	// #endif
 
 	//perfmodel_add_delay(0, io_size);
 }
@@ -950,9 +937,9 @@ void dax_exit(uint8_t dev)
 	ioat_exit(dev);
 #endif
 
-	#ifdef KERNFS
+	// #ifdef KERNFS
 	munmap(dax_addr[dev], dev_size[dev]);
-	#endif
+	// #endif
 
 	return;
 }
