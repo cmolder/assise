@@ -1224,17 +1224,103 @@ int set_shared_pages_readable(struct inode *ip) {
 		bmap_req.start_offset = blk_found << g_block_size_shift;
 		ret = bmap(ip, &bmap_req);
 		if (ret == -EIO || bmap_req.dev != g_root_dev) {
-                	mlfs_debug("mmap: bad extent, error %d\n", ret);
+                	mlfs_debug("set_shared_pages_readable: bad extent, error %d\n", ret);
                 	return -1;
         	}
 		mlfs_debug("next extent: block %lu, length %u\n", bmap_req.block_no, bmap_req.blk_count_found);
 
-		protect = mprotect(bmap_req.block_no, bmap_req.blk_count_found, PROT_READ);
+		protect = mprotect(round_down_to_alignment(bmap_req.block_no), round_up_to_alignment(bmap_req.blk_count_found), PROT_READ);
 		if (protect == -1) {
 			mlfs_printf("\x1b[31mFailed to protect region %s\n\x1b[0m", "");
 			return -1;
 		} else {
 			mlfs_printf("\x1b[33mSuccessfully protected region %s\n\x1b[0m", "");
+		}
+		// if (blk_base + blk_found != bmap_req.block_no) {
+		// 	mlfs_debug("mmap: non-contiguous extent at block %lu, file block %lu\n", bmap_req.block_no, blk_found);
+		// 	return NULL;
+		// }
+		blk_found += bmap_req.blk_count_found;
+	}
+
+	return 0;
+
+	// return (void *) ((blk_base << g_block_size_shift) + g_bdev[g_root_dev]->map_base_addr);
+}
+
+
+// Maybe need to do some conflict checking here
+int revoke_shared_pages_readable(struct inode *ip) {
+	// struct file *f;
+	int ret;
+	uint64_t blk_count;
+	uint64_t blk_found;
+	uint64_t blk_base;
+	bmap_req_t bmap_req;
+
+	struct inode * ip = icache_find(inum);
+	if (!ip) { 
+		// mlfs_printf("Inode %d  not in cache\n", inum);
+		ip = iget(inum);
+		struct dinode _dinode; // TODO is this necessary? Shouldn't the inode have the info we need?
+		read_ondisk_inode(inum, &_dinode);
+		ip->_dinode = (struct dinode *)ip;
+		sync_inode_from_dinode(ip, &_dinode);
+		
+		if (ip != NULL) {
+			mlfs_printf("Found inode in disk: ino=%d, uid=%d, gid=%d, perms=%o\n", 
+							ip->inum, _dinode.uid, _dinode.gid, _dinode.perms);
+		} else {
+			panic("inode not found on cache or disk");
+		}
+	}
+	
+
+	mlfs_printf("Marking file pages as non readable for inode %d\n", ip->inum);
+
+	blk_count = ip->size >> g_block_size_shift;
+	mlfs_debug("blk_count = %lu, size = %lu\n", blk_count, ip->size);
+	blk_found = 0;
+
+	bmap_req.start_offset = 0;
+	bmap_req.blk_count = blk_count;
+	bmap_req.blk_count_found = 0;
+	ret = bmap(ip, &bmap_req);
+	if (ret == -EIO || bmap_req.dev != g_root_dev) {
+		mlfs_printf("revoke_shared_pages_readable: bad extent, error %d\n", ret);
+		return -1;
+	}
+	mlfs_debug("first extent: block %lu, length %u\n", bmap_req.block_no, bmap_req.blk_count_found);
+
+
+	blk_base = bmap_req.block_no;
+	blk_found = bmap_req.blk_count_found;
+
+	int protect = mprotect(round_down_to_alignment(g_bdev[g_root_dev]->map_base_addr + blk_base), round_up_to_alignment(blk_found), PROT_NONE);
+	if (protect == -1) {
+		mlfs_printf("\x1b[31mFailed to revoke region %s\n\x1b[0m", "");
+		return -1;
+	} else {
+		mlfs_printf("\x1b[33mSuccessfully revoked region %s\n\x1b[0m", "");
+	}
+
+	while (blk_found < blk_count) {
+		bmap_req.blk_count_found = 0;
+		bmap_req.blk_count = blk_count - blk_found;
+		bmap_req.start_offset = blk_found << g_block_size_shift;
+		ret = bmap(ip, &bmap_req);
+		if (ret == -EIO || bmap_req.dev != g_root_dev) {
+                	mlfs_debug("revoke_shared_pages_readable: bad extent, error %d\n", ret);
+                	return -1;
+        	}
+		mlfs_debug("next extent: block %lu, length %u\n", bmap_req.block_no, bmap_req.blk_count_found);
+
+		protect = mprotect(round_down_to_alignment(bmap_req.block_no), round_up_to_alignment(bmap_req.blk_count_found), PROT_NONE);
+		if (protect == -1) {
+			mlfs_printf("\x1b[31mFailed to revoke region %s\n\x1b[0m", "");
+			return -1;
+		} else {
+			mlfs_printf("\x1b[33mSuccessfully revoked region %s\n\x1b[0m", "");
 		}
 		// if (blk_base + blk_found != bmap_req.block_no) {
 		// 	mlfs_debug("mmap: non-contiguous extent at block %lu, file block %lu\n", bmap_req.block_no, blk_found);

@@ -711,6 +711,7 @@ int get_dirent(struct inode *dir_inode, struct mlfs_dirent *buf, offset_t offset
 void show_libfs_stats(void);
 
 int set_shared_pages_readable(struct inode *ip);
+int revoke_shared_pages_readable(int inum);
 
 //APIs for debugging.
 uint32_t dbg_get_iblkno(uint32_t inum);

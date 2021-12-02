@@ -421,6 +421,12 @@ int rpc_lease_change(int mid, int rid, uint32_t inum, int type, uint32_t version
 		start_tsc = asm_rdtscp();
 		g_perf_stats.lease_rpc_nr++;
 	}
+
+	#ifdef MLFS_PERMISSIONS
+		if (type == LEASE_FREE) {
+			revoke_shared_pages_readable(inum);
+		}
+	#endif
 #endif
 
 	//setting msg->id allows us to insert a hook in the rdma driver to later wait until response received
