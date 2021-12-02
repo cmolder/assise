@@ -415,7 +415,7 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 	// shared_size = (disk_sb[dev].datablock_start - disk_sb[dev].inode_start << g_block_size_shift);
 
 	// Map up to datablock start as read
-	shared_size = (disk_sb[dev].datablock_start << g_block_size_shift);
+	shared_size = (disk_sb[dev].log_start << g_block_size_shift);
 
 	// shared_addr = (uint8_t *)mmap(NULL, round_to_alignment(shared_size), PROT_READ | PROT_WRITE,
 	// 	                        MAP_SHARED| MAP_POPULATE, dax_fd, shared_start_offset);
