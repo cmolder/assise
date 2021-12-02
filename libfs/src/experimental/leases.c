@@ -413,10 +413,10 @@ int mark_lease_revocable(uint32_t inum)
 	if (enable_perf_stats)
 		start_tsc = asm_rdtscp();
 
-	if(ls->holders == 1) {
+	if(ls->holders <= 1) {
 #ifndef LAZY_SURRENDER
 			rpc_lease_change(ls->mid, g_self_id, ls->inum, LEASE_FREE, ls->lversion, ls->lblock, 0);
-			ls->state = LEASE_FREE;		
+			ls->state = LEASE_FREE;	
 #endif
 
 #if 0
@@ -433,6 +433,10 @@ int mark_lease_revocable(uint32_t inum)
 
 	if (enable_perf_stats)
 		g_perf_stats.lease_revoke_wait_tsc += (asm_rdtscp() - start_tsc);
+
+	#ifdef MLFS_PERMISSIONS
+		revoke_shared_pages_readable(ls->inum);
+	#endif	
 
 	mlfs_info("lease surrendered (state: %d) for inum: %u (holder = %u)\n",
 			ls->state, inum, ls->hid);
