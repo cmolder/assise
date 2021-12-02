@@ -74,7 +74,7 @@ int should_group_bits_apply(uid_t uid, gid_t primary_gid, gid_t inode_gid) {
 }
 
 
-int violates_sticky_bit(uid_t uid, uint16_t parent_perms, uint16_t target_perms, uid_t parent_uid, uid_t target_uid) {
+int violates_sticky_bit(uid_t uid, uid_t parent_uid, uid_t target_uid, uint16_t parent_perms) {
         if ((parent_perms & S_ISVTX) == 0)
                 return 0;
         return !(check_root(uid)) && uid != target_uid && uid != parent_uid;

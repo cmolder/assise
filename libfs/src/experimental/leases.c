@@ -849,7 +849,7 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 				puid = pip->uid;
 
 				// Check sticky bit
-				if (violates_sticky_bit(ruid, pperms, iperms, puid, iuid)) {
+				if (violates_sticky_bit(ruid, puid, iuid, pperms)) {
 					mlfs_printf("chino access denied: sticky bit violated on reqid %d (uid %d, gid %d) on inode %d\n", req_id, ruid, rgid, ino);
 					return -EPERM;
 				}
