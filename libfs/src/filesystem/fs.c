@@ -480,7 +480,7 @@ void init_fs(void)
 
 		mlfs_info("LibFS is initialized on dev %d\n", g_log_dev);
 
-#ifdef MLFS_SECURE_MAPPING
+#if MLFS_SECURE_MAPPING
 		dax_init_cleanup(1, disk_sb);
 #endif
 
@@ -1167,7 +1167,7 @@ void stati(struct inode *ip, struct stat *st)
 	st->st_atime = (time_t)ip->atime.tv_sec;
 }
 
-#ifdef MLFS_SECURE_MAPPING
+#if MLFS_SECURE_MAPPING
 
 uint64_t round_up_to_alignment (uint64_t value) {
 	uint64_t align = 2097152UL;

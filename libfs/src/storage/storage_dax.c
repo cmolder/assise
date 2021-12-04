@@ -347,7 +347,7 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 }
 
 #ifdef LIBFS
-#ifdef MLFS_SECURE_MAPPING
+#if MLFS_SECURE_MAPPING
 
 
 uint64_t round_to_alignment (uint64_t value) {

@@ -710,7 +710,7 @@ int check_log_invalidation(struct fcache_block *_fcache_block);
 int get_dirent(struct inode *dir_inode, struct mlfs_dirent *buf, offset_t offset);
 void show_libfs_stats(void);
 
-#ifdef MLFS_SECURE_MAPPING
+#if MLFS_SECURE_MAPPING
 int set_shared_pages_readable(struct inode *ip);
 int revoke_shared_pages_readable(int inum);
 #endif
