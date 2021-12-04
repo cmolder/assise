@@ -5,13 +5,13 @@
 #include <sys/stat.h>
 
 int main(int argc, char *argv[]) {
-        if(argc != 2) {
+        if(argc != 3) {
             printf("Supply two argument: ./test_rename <old-path> <new-path>\n");
             return 0;
         } 
 
         char* oldpath = argv[1];
-        char* newpath = argv[2]
+        char* newpath = argv[2];
 
         int r;
         printf("Trying rename %s %s", oldpath, newpath);

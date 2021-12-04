@@ -774,27 +774,39 @@ int mlfs_posix_rename(char *oldpath, char *newpath)
 #if MLFS_LEASE
 	// Acquire old directory write lease
 	char old_parent_path[DIRSIZ];
+	mlfs_printf("%s\n", "Okay 0");
 	get_parent_path((char *)oldpath, old_parent_path, old_file_name);
+	mlfs_printf("%s\n", "Okay 1");
 	if (acquire_lease(old_dir_inode->inum, LEASE_WRITE, old_parent_path) < 0) {
 		mlfs_printf("rename: access denied for old parent directory %s", old_parent_path);
 		return -EACCES;
 	}
+	mlfs_printf("%s\n", "Okay 2");
+	mlfs_printf("rename: write access granted for old parent directory %s", old_parent_path);
 
 	// Acquire new directory write lease
 	if (new_dir_inode != old_dir_inode) {
 		char new_parent_path[DIRSIZ];
+		mlfs_printf("%s\n", "Okay 3");
 		get_parent_path((char *)newpath, new_parent_path, new_file_name);
+		mlfs_printf("%s\n", "Okay 4");
 		if (acquire_lease(new_dir_inode->inum, LEASE_WRITE, new_parent_path) < 0) {
 			mlfs_printf("rename: access denied for new parent directory %s", new_parent_path);
 			return -EPERM;
 		}
+		mlfs_printf("%s\n", "Okay 5");
+		mlfs_printf("rename: write access granted for new parent directory %s", new_parent_path);
 	}
+	
 
 	// Acquire old file write lease
+	mlfs_printf("%s\n", "Okay 6");
 	if (acquire_lease_(old_inode->inum, LEASE_WRITE, oldpath, LEASE_CHINO, -1, old_dir_inode->inum) < 0) {
 		mlfs_printf("rename: access denied for %s", oldpath);
 		return -EPERM;
 	}
+	mlfs_printf("%s\n", "Okay 7");
+	mlfs_printf("rename: write access granted for old file %s", oldpath);
 
 #endif
 

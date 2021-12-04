@@ -718,7 +718,7 @@ void shutdown_lease_protocol()
 /* KernFS */
 
 /* Helper function for finding inode */
-struct inode *_find_inode(int inum) {
+static struct inode *_find_inode(int inum) {
 	struct inode *ip = icache_find(inum);
 	if (!ip) { 
 		mlfs_printf("Inode %d  not in cache\n", inum);
@@ -847,7 +847,7 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 					return -EPERM;
 				} 
 				// Get parent inode to check sticky bit
-				struct inode *pip = _find_inode(chino_parent_inum)
+				struct inode *pip = _find_inode(chino_parent_inum);
 				if (!pip) {
 					mlfs_printf("Could not find inode %d", chino_parent_inum);
 					return -ENOENT;
