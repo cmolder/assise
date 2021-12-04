@@ -2,6 +2,7 @@
 #define _STORAGE_H_
 
 #include "global/global.h"
+#include "filesystem/shared.h"
 
 // Interface for different storage engines.
 struct storage_operations
@@ -90,6 +91,10 @@ int dax_erase(uint8_t dev, addr_t blockno, uint32_t io_size);
 //    int flags);
 int dax_commit(uint8_t dev);
 void dax_exit(uint8_t dev);
+
+#if MLFS_SECURE_MAPPING
+void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb);
+#endif
 
 // HDD
 uint8_t *hdd_init(uint8_t dev, char *dev_path);
