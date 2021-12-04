@@ -414,7 +414,7 @@ int mark_lease_revocable(uint32_t inum)
 
 	if(ls->holders == 1) {
 #ifndef LAZY_SURRENDER
-			rpc_lease_change(ls->mid, g_self_id, ls->inum, LEASE_FREE, ls->lversion, ls->lblock, 0, LEASE_STANDARD, -1);
+			rpc_lease_change(ls->mid, g_self_id, ls->inum, LEASE_FREE, ls->lversion, ls->lblock, 0, LEASE_STANDARD, -1, -1);
 			ls->state = LEASE_FREE;		
 #endif
 
