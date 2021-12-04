@@ -434,9 +434,11 @@ int mark_lease_revocable(uint32_t inum)
 	if (enable_perf_stats)
 		g_perf_stats.lease_revoke_wait_tsc += (asm_rdtscp() - start_tsc);
 
+	#ifdef LIBFS
 	#if MLFS_SECURE_MAPPING
 		revoke_shared_pages_readable(ls->inum);
 	#endif	
+	#endif
 
 	mlfs_info("lease surrendered (state: %d) for inum: %u (holder = %u)\n",
 			ls->state, inum, ls->hid);

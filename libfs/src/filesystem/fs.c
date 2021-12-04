@@ -480,8 +480,10 @@ void init_fs(void)
 
 		mlfs_info("LibFS is initialized on dev %d\n", g_log_dev);
 
+#ifdef LIBFS
 #if MLFS_SECURE_MAPPING
 		dax_init_cleanup(1, disk_sb);
+#endif
 #endif
 
 		perf_profile = getenv("MLFS_PROFILE");

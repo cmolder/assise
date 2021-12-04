@@ -92,8 +92,10 @@ int dax_erase(uint8_t dev, addr_t blockno, uint32_t io_size);
 int dax_commit(uint8_t dev);
 void dax_exit(uint8_t dev);
 
+#ifdef LIBFS
 #if MLFS_SECURE_MAPPING
 void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb);
+#endif
 #endif
 
 // HDD
