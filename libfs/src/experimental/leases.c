@@ -366,7 +366,7 @@ int revoke_lease(int sockfd, uint32_t seq_n, uint32_t inum)
 	}
 
 	//rpc_lease_flush_response(sockfd, seq_n, inum, ls->lversion, ls->lblock);
-	rpc_lease_change(ls->mid, g_self_id, ls->inum, LEASE_FREE, ls->lversion, ls->lblock, 0, LEASE_STANDARD, -1);
+	rpc_lease_change(ls->mid, g_self_id, ls->inum, LEASE_FREE, ls->lversion, ls->lblock, 0, LEASE_STANDARD, -1, -1);
 
 	ls->state = LEASE_FREE;
 	ls->hid = ls->mid;
@@ -718,19 +718,19 @@ void shutdown_lease_protocol()
 /* KernFS */
 
 /* Helper function for finding inode */
-int _find_inode(struct inode **ip, int inum) {
-	*ip = icache_find(inum);
-	if (!*ip) { 
+int _find_inode(struct inode *ip, int inum) {
+	ip = icache_find(inum);
+	if (!ip) { 
 		mlfs_printf("Inode %d  not in cache\n", inum);
-		*ip = iget(inum);
+		ip = iget(inum);
 		struct dinode _dinode; // TODO is this necessary? Shouldn't the inode have the info we need?
 		read_ondisk_inode(inum, &_dinode);
-		*ip->_dinode = (struct dinode *)*ip;
-		sync_inode_from_dinode(*ip, &_dinode);
+		ip->_dinode = (struct dinode *)ip;
+		sync_inode_from_dinode(ip, &_dinode);
 		
-		if (*ip != NULL) {
+		if (ip != NULL) {
 			mlfs_printf("Found inode in disk: ino=%d, uid=%d, gid=%d, perms=%o\n", 
-							*ip->inum, _dinode.uid, _dinode.gid, _dinode.perms);
+							ip->inum, _dinode.uid, _dinode.gid, _dinode.perms);
 			return 0;
 		} else {
 			panic("inode not found on cache or disk");
@@ -739,7 +739,7 @@ int _find_inode(struct inode **ip, int inum) {
 		
 	} else {
 		mlfs_printf("Found inode in cache: ino=%d, uid=%d, gid=%d, perms=%o\n", 
-					*ip->inum, *ip->uid, *ip->gid, *ip->perms);
+					ip->inum, ip->uid, ip->gid, ip->perms);
 		return 0;
 	}
 	return 0; // TODO this block is probably not reached.
@@ -779,7 +779,7 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 		// Get target inode uid / gid / perms
 		mlfs_printf("Checking permissions for inum %d\n", inum);
 		struct inode *ip;
-		if (_find_inode(&ip, inum) < 0 || !ip)
+		if (_find_inode(ip, inum) < 0 || !ip)
 			panic("Cound not find inode %d\n", inum);
 
 		uint32_t ino = ip->inum;
@@ -847,7 +847,7 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 				} 
 				// Get parent inode to check sticky bit
 				struct inode *pip;
-				if (_find_inode(&pip, chino_parent_inum) < 0 || !pip)
+				if (_find_inode(pip, chino_parent_inum) < 0 || !pip)
 					panic("Cound not find inode %d\n", inum);
 				pperms = pip->perms;
 				puid = pip->uid;
