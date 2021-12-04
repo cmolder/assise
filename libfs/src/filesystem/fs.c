@@ -479,7 +479,10 @@ void init_fs(void)
 		read_root_inode();
 
 		mlfs_info("LibFS is initialized on dev %d\n", g_log_dev);
+
+#ifdef MLFS_SECURE_MAPPING
 		dax_init_cleanup(1, disk_sb);
+#endif
 
 		perf_profile = getenv("MLFS_PROFILE");
 
@@ -1164,6 +1167,8 @@ void stati(struct inode *ip, struct stat *st)
 	st->st_atime = (time_t)ip->atime.tv_sec;
 }
 
+#ifdef MLFS_SECURE_MAPPING
+
 uint64_t round_up_to_alignment (uint64_t value) {
 	uint64_t align = 2097152UL;
 	uint64_t diff = value % align;
@@ -1322,17 +1327,14 @@ int revoke_shared_pages_readable(int inum) {
 		} else {
 			mlfs_printf("\x1b[33mSuccessfully revoked region %s\n\x1b[0m", "");
 		}
-		// if (blk_base + blk_found != bmap_req.block_no) {
-		// 	mlfs_debug("mmap: non-contiguous extent at block %lu, file block %lu\n", bmap_req.block_no, blk_found);
-		// 	return NULL;
-		// }
+
 		blk_found += bmap_req.blk_count_found;
 	}
 
 	return 0;
 
-	// return (void *) ((blk_base << g_block_size_shift) + g_bdev[g_root_dev]->map_base_addr);
 }
+#endif
 
 // TODO: Now, eviction is simply discarding. Extend this function
 // to evict data to the update log.

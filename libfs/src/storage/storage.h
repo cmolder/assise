@@ -77,7 +77,6 @@ void pmem_exit(uint8_t dev);
 
 // pmem-dax
 uint8_t *dax_init(uint8_t dev, char *dev_path);
-void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb);
 int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size);
 int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offset,
     uint32_t io_size);
@@ -92,6 +91,10 @@ int dax_erase(uint8_t dev, addr_t blockno, uint32_t io_size);
 //    int flags);
 int dax_commit(uint8_t dev);
 void dax_exit(uint8_t dev);
+
+#ifdef MLFS_SECURE_MAPPING
+void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb);
+#endif
 
 // HDD
 uint8_t *hdd_init(uint8_t dev, char *dev_path);

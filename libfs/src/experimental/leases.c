@@ -434,7 +434,7 @@ int mark_lease_revocable(uint32_t inum)
 	if (enable_perf_stats)
 		g_perf_stats.lease_revoke_wait_tsc += (asm_rdtscp() - start_tsc);
 
-	#ifdef MLFS_PERMISSIONS
+	#ifdef MLFS_SECURE_MAPPING
 		revoke_shared_pages_readable(ls->inum);
 	#endif	
 
@@ -536,11 +536,8 @@ retry:
 
 		iunlock(ip);
 
-		#ifdef MLFS_PERMISSIONS
+		#ifdef MLFS_SECURE_MAPPING
 			int ret = set_shared_pages_readable(ip);
-			if (ret == -1) {
-				// revoke lease or something
-			}
 		#endif
 	}
 #endif
