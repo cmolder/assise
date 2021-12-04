@@ -718,8 +718,8 @@ void shutdown_lease_protocol()
 /* KernFS */
 
 /* Helper function for finding inode */
-int _find_inode(struct inode *ip, int inum) {
-	ip = icache_find(inum);
+struct inode *_find_inode(int inum) {
+	struct inode *ip = icache_find(inum);
 	if (!ip) { 
 		mlfs_printf("Inode %d  not in cache\n", inum);
 		ip = iget(inum);
@@ -731,18 +731,16 @@ int _find_inode(struct inode *ip, int inum) {
 		if (ip != NULL) {
 			mlfs_printf("Found inode in disk: ino=%d, uid=%d, gid=%d, perms=%o\n", 
 							ip->inum, _dinode.uid, _dinode.gid, _dinode.perms);
-			return 0;
+			
 		} else {
 			panic("inode not found on cache or disk");
-			return -ENOENT;
 		}
 		
 	} else {
 		mlfs_printf("Found inode in cache: ino=%d, uid=%d, gid=%d, perms=%o\n", 
 					ip->inum, ip->uid, ip->gid, ip->perms);
-		return 0;
 	}
-	return 0; // TODO this block is probably not reached.
+	return ip;
 }
 
 
@@ -778,9 +776,12 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 
 		// Get target inode uid / gid / perms
 		mlfs_printf("Checking permissions for inum %d\n", inum);
-		struct inode *ip;
-		if (_find_inode(ip, inum) < 0 || !ip)
-			panic("Cound not find inode %d\n", inum);
+		struct inode *ip = _find_inode(inum);
+		if (!ip) {
+			mlfs_printf("Could not find inode %d", inum);
+			return -ENOENT;
+		}
+			
 
 		uint32_t ino = ip->inum;
 		uid_t iuid = ip->uid;
@@ -797,10 +798,10 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 		mlfs_printf("LibFS ID=%d has uid=%d, gid=%d\n", req_id, ruid, rgid);
 
 		// Perform permission checks
-		switch (lq) {
-
+		enum permcheck_type checktype;
+		switch (lq) {		
 			case LEASE_STANDARD: 
-				enum permcheck_type checktype = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
+				checktype = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
 				if (!permission_check(iuid, igid, ruid, rgid, iperms, checktype)) {
 					mlfs_printf("access denied: reqid %d (uid %d, gid %d) on inode %d\n", req_id, ruid, rgid, ino);
 					return -EPERM;
@@ -840,17 +841,19 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 				break;
 
 			case LEASE_CHINO:
-				enum permcheck_type checktype = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
+				checktype = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
 				if (!permission_check(iuid, igid, ruid, rgid, iperms, checktype)) {
 					mlfs_printf("chino access denied: permission denied on reqid %d (uid %d, gid %d) on inode %d\n", req_id, ruid, rgid, ino);
 					return -EPERM;
 				} 
 				// Get parent inode to check sticky bit
-				struct inode *pip;
-				if (_find_inode(pip, chino_parent_inum) < 0 || !pip)
-					panic("Cound not find inode %d\n", inum);
-				pperms = pip->perms;
-				puid = pip->uid;
+				struct inode *pip = _find_inode(chino_parent_inum)
+				if (!pip) {
+					mlfs_printf("Could not find inode %d", chino_parent_inum);
+					return -ENOENT;
+				}
+				uint16_t pperms = pip->perms;
+				uid_t puid = pip->uid;
 
 				// Check sticky bit
 				if (violates_sticky_bit(ruid, puid, iuid, pperms)) {
@@ -1108,7 +1111,7 @@ int discard_leases(int req_id)
 			if(item->hid == req_id) {
 				//rpc_lease_change(item->mid, item->inum, LEASE_FREE, 0, 0, 0);
 				int mid;
-				int res = modify_lease_state(req_id, item->inum, LEASE_FREE, 0, 0, &mid, LEASE_STANDARD, -1);
+				int res = modify_lease_state(req_id, item->inum, LEASE_FREE, 0, 0, &mid, LEASE_STANDARD, -1, -1);
 				if (res < 0) {
 					mlfs_printf("Error in discarding lease for inum %u\n", item->inum);
 				} else {
