@@ -428,15 +428,27 @@ void init_fs(void)
 
 		device_init();
 
+		mlfs_printf("Finished device init%s\n", "");
+
 		debug_init();
 
+		mlfs_printf("Finished debug init%s\n", "");
+
 		cache_init();
+
+		mlfs_printf("Finished cache init%s\n", "");
 
 		//shared_memory_init();
 
 		locks_init();
 
+		mlfs_printf("Finished locks init%s\n", "");
+
+
 		read_superblock(g_root_dev);
+
+		mlfs_printf("Finished read superblock%s\n", "");
+
 #ifdef USE_SSD
 		read_superblock(g_ssd_dev);
 #endif
@@ -450,14 +462,27 @@ void init_fs(void)
 
 		mlfs_file_init();
 
+		mlfs_printf("Finished file init%s\n", "");
+
+
 #ifdef DISTRIBUTED
 		mlfs_rpc_init();
+
+		mlfs_printf("Finished RPC init%s\n", "");
+
 #else
 		init_log();
+
+		mlfs_printf("Finished log init%s\n", "");
+
 #endif
 		read_root_inode();
 
 		mlfs_info("LibFS is initialized on dev %d\n", g_log_dev);
+
+#if MLFS_SECURE_MAPPING
+		dax_init_cleanup(1, disk_sb);
+#endif
 
 		perf_profile = getenv("MLFS_PROFILE");
 
@@ -1138,6 +1163,175 @@ void stati(struct inode *ip, struct stat *st)
 	st->st_ctime = (time_t)ip->ctime.tv_sec;
 	st->st_atime = (time_t)ip->atime.tv_sec;
 }
+
+#if MLFS_SECURE_MAPPING
+
+uint64_t round_up_to_alignment (uint64_t value) {
+	uint64_t align = 2097152UL;
+	uint64_t diff = value % align;
+	if (diff != 0) {
+		return value + (align - diff);
+	}
+	return value;
+}
+
+uint64_t round_down_to_alignment (uint64_t value) {
+	uint64_t align = 2097152UL;
+	uint64_t diff = value % align;
+	if (diff != 0) {
+		return value - diff;
+	}
+	return value;
+}
+
+int set_shared_pages_readable(struct inode *ip) {
+	// struct file *f;
+	int ret;
+	uint64_t blk_count;
+	uint64_t blk_found;
+	uint64_t blk_base;
+	bmap_req_t bmap_req;
+
+	mlfs_printf("Marking file pages as readable for inode %d\n", ip->inum);
+
+	blk_count = ip->size >> g_block_size_shift;
+	mlfs_debug("blk_count = %lu, size = %lu\n", blk_count, ip->size);
+	blk_found = 0;
+
+	bmap_req.start_offset = 0;
+	bmap_req.blk_count = blk_count;
+	bmap_req.blk_count_found = 0;
+	ret = bmap(ip, &bmap_req);
+	if (ret == -EIO || bmap_req.dev != g_root_dev) {
+		mlfs_printf("set_shared_pages_readable: bad extent, error %d\n", ret);
+		return -1;
+	}
+	mlfs_debug("first extent: block %lu, length %u\n", bmap_req.block_no, bmap_req.blk_count_found);
+
+
+	blk_base = bmap_req.block_no;
+	blk_found = bmap_req.blk_count_found;
+
+	int protect = mprotect(round_down_to_alignment(g_bdev[g_root_dev]->map_base_addr + blk_base), round_up_to_alignment(blk_found), PROT_READ);
+	if (protect == -1) {
+		mlfs_printf("\x1b[31mFailed to protect region %s\n\x1b[0m", "");
+		return -1;
+	} else {
+		mlfs_printf("\x1b[33mSuccessfully protected region %s\n\x1b[0m", "");
+	}
+
+	while (blk_found < blk_count) {
+		bmap_req.blk_count_found = 0;
+		bmap_req.blk_count = blk_count - blk_found;
+		bmap_req.start_offset = blk_found << g_block_size_shift;
+		ret = bmap(ip, &bmap_req);
+		if (ret == -EIO || bmap_req.dev != g_root_dev) {
+                	mlfs_debug("set_shared_pages_readable: bad extent, error %d\n", ret);
+                	return -1;
+        	}
+		mlfs_debug("next extent: block %lu, length %u\n", bmap_req.block_no, bmap_req.blk_count_found);
+
+		protect = mprotect(round_down_to_alignment(bmap_req.block_no), round_up_to_alignment(bmap_req.blk_count_found), PROT_READ);
+		if (protect == -1) {
+			mlfs_printf("\x1b[31mFailed to protect region %s\n\x1b[0m", "");
+			return -1;
+		} else {
+			mlfs_printf("\x1b[33mSuccessfully protected region %s\n\x1b[0m", "");
+		}
+		// if (blk_base + blk_found != bmap_req.block_no) {
+		// 	mlfs_debug("mmap: non-contiguous extent at block %lu, file block %lu\n", bmap_req.block_no, blk_found);
+		// 	return NULL;
+		// }
+		blk_found += bmap_req.blk_count_found;
+	}
+
+	return 0;
+
+	// return (void *) ((blk_base << g_block_size_shift) + g_bdev[g_root_dev]->map_base_addr);
+}
+
+
+// Maybe need to do some conflict checking here
+int revoke_shared_pages_readable(int inum) {
+	// struct file *f;
+	int ret;
+	uint64_t blk_count;
+	uint64_t blk_found;
+	uint64_t blk_base;
+	bmap_req_t bmap_req;
+
+	struct inode * ip = icache_find(inum);
+	if (!ip) { 
+		// mlfs_printf("Inode %d  not in cache\n", inum);
+		ip = iget(inum);
+		struct dinode _dinode; // TODO is this necessary? Shouldn't the inode have the info we need?
+		read_ondisk_inode(inum, &_dinode);
+		ip->_dinode = (struct dinode *)ip;
+		sync_inode_from_dinode(ip, &_dinode);
+		
+		if (ip != NULL) {
+			mlfs_printf("Found inode in disk: ino=%d, uid=%d, gid=%d, perms=%o\n", 
+							ip->inum, _dinode.uid, _dinode.gid, _dinode.perms);
+		} else {
+			panic("inode not found on cache or disk");
+		}
+	}
+	
+
+	mlfs_printf("Marking file pages as non readable for inode %d\n", ip->inum);
+
+	blk_count = ip->size >> g_block_size_shift;
+	mlfs_debug("blk_count = %lu, size = %lu\n", blk_count, ip->size);
+	blk_found = 0;
+
+	bmap_req.start_offset = 0;
+	bmap_req.blk_count = blk_count;
+	bmap_req.blk_count_found = 0;
+	ret = bmap(ip, &bmap_req);
+	if (ret == -EIO || bmap_req.dev != g_root_dev) {
+		mlfs_printf("revoke_shared_pages_readable: bad extent, error %d\n", ret);
+		return -1;
+	}
+	mlfs_debug("first extent: block %lu, length %u\n", bmap_req.block_no, bmap_req.blk_count_found);
+
+
+	blk_base = bmap_req.block_no;
+	blk_found = bmap_req.blk_count_found;
+
+	int protect = mprotect(round_down_to_alignment(g_bdev[g_root_dev]->map_base_addr + blk_base), round_up_to_alignment(blk_found), PROT_NONE);
+	if (protect == -1) {
+		mlfs_printf("\x1b[31mFailed to revoke region %s\n\x1b[0m", "");
+		return -1;
+	} else {
+		mlfs_printf("\x1b[33mSuccessfully revoked region %s\n\x1b[0m", "");
+	}
+
+	while (blk_found < blk_count) {
+		bmap_req.blk_count_found = 0;
+		bmap_req.blk_count = blk_count - blk_found;
+		bmap_req.start_offset = blk_found << g_block_size_shift;
+		ret = bmap(ip, &bmap_req);
+		if (ret == -EIO || bmap_req.dev != g_root_dev) {
+                	mlfs_debug("revoke_shared_pages_readable: bad extent, error %d\n", ret);
+                	return -1;
+        	}
+		mlfs_debug("next extent: block %lu, length %u\n", bmap_req.block_no, bmap_req.blk_count_found);
+
+		protect = mprotect(round_down_to_alignment(bmap_req.block_no), round_up_to_alignment(bmap_req.blk_count_found), PROT_NONE);
+		if (protect == -1) {
+			mlfs_printf("\x1b[31mFailed to revoke region %s\n\x1b[0m", "");
+			return -1;
+		} else {
+			mlfs_printf("\x1b[33mSuccessfully revoked region %s\n\x1b[0m", "");
+		}
+
+		blk_found += bmap_req.blk_count_found;
+	}
+
+	return 0;
+
+}
+#endif
 
 // TODO: Now, eviction is simply discarding. Extend this function
 // to evict data to the update log.
