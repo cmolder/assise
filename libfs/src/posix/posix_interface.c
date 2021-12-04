@@ -645,6 +645,13 @@ int mlfs_posix_unlink(const char *filename)
 	 * e.g., unlink without calling close */
 	start_log_tx();
 
+	inode = namei(filename);
+	if (!inode) {
+		mlfs_debug("unlink: didn't fine inode for file %s\n", filename);
+		abort_log_tx();
+		return -ENOENT;
+	}
+
 	dir_inode = nameiparent((char *)filename, name);
 	if (!dir_inode) {
 		mlfs_debug("unlink: didn't find parent dir for file %s\n", filename);
