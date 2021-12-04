@@ -346,7 +346,9 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 	return dax_addr[dev];
 }
 
+#ifdef LIBFS
 #ifdef MLFS_SECURE_MAPPING
+
 
 uint64_t round_to_alignment (uint64_t value) {
 	uint64_t diff = value % align;
@@ -415,6 +417,7 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 
 
 }
+#endif
 #endif
 
 int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
