@@ -1073,7 +1073,7 @@ int ichown(struct inode *ip, uid_t owner, gid_t group) {
 		ip->gid = group;
 
 	// Unset setgid/setuid on (executable) files if the LibFS is not root.
-	if (geteuid() != 0 && ip->type == T_FILE)
+	if (geteuid() != 0 && ip->itype == T_FILE)
 		ip->perms = ip->perms & ~(S_ISGID | S_ISUID);
 
 	iupdate(ip);

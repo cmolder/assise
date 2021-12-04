@@ -720,17 +720,17 @@ void shutdown_lease_protocol()
 /* Helper function for finding inode */
 int _find_inode(struct inode **ip, int inum) {
 	*ip = icache_find(inum);
-	if (!ip) { 
+	if (!*ip) { 
 		mlfs_printf("Inode %d  not in cache\n", inum);
-		ip = iget(inum);
+		*ip = iget(inum);
 		struct dinode _dinode; // TODO is this necessary? Shouldn't the inode have the info we need?
 		read_ondisk_inode(inum, &_dinode);
-		ip->_dinode = (struct dinode *)ip;
-		sync_inode_from_dinode(ip, &_dinode);
+		*ip->_dinode = (struct dinode *)*ip;
+		sync_inode_from_dinode(*ip, &_dinode);
 		
-		if (ip != NULL) {
+		if (*ip != NULL) {
 			mlfs_printf("Found inode in disk: ino=%d, uid=%d, gid=%d, perms=%o\n", 
-							ip->inum, _dinode.uid, _dinode.gid, _dinode.perms);
+							*ip->inum, _dinode.uid, _dinode.gid, _dinode.perms);
 			return 0;
 		} else {
 			panic("inode not found on cache or disk");
@@ -739,7 +739,7 @@ int _find_inode(struct inode **ip, int inum) {
 		
 	} else {
 		mlfs_printf("Found inode in cache: ino=%d, uid=%d, gid=%d, perms=%o\n", 
-					ip->inum, ip->uid, ip->gid, ip->perms);
+					*ip->inum, *ip->uid, *ip->gid, *ip->perms);
 		return 0;
 	}
 	return 0; // TODO this block is probably not reached.
