@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include "mlfs/mlfs_user.h"
+#include "experimental/leases.h"
 #include "global/global.h"
 #include "global/util.h"
 #include "global/defs.h"
@@ -2353,11 +2354,14 @@ void signal_callback(struct app_context *msg)
 		addr_t blknr;
 		uint32_t own;
 		uint32_t root;
-		sscanf(msg->data, "|%s |%u|%u|%d|%u|%lu|%u|%u", cmd_hdr, &req_id, &inum, &type, &version, &blknr, &own, &root);
-		mlfs_debug("received remote lease acquire with inum %u | type[%d] | owner[%d] | root[%d]\n", inum, type, own, root);
+		int lq;
+		gid_t chown_target_gid;
+		int chino_parent_inum;
+		sscanf(msg->data, "|%s |%u|%u|%d|%u|%lu|%u|%u|%d", cmd_hdr, &req_id, &inum, &type, &version, &blknr, &lq, &chown_target_gid, &chino_parent_inum);
+		mlfs_debug("received remote lease acquire with inum %u | type[%d] | qualifier[%u] | chown_target_gid[%d] |chino_parent_inum[%d]\n", inum, type, lq, chown_target_gid, chino_parent_inum);
 
 		int mid = -1;
-		int res = modify_lease_state(req_id, inum, type, version, blknr, &mid, own, root);
+		int res = modify_lease_state(req_id, inum, type, version, blknr, &mid, lq, chown_target_gid, chino_parent_inum);
 
 		// If mid >= 0 due to wrong lease manager
 		// (a) For read/write lease RPCs, return 'invalid lease request' to LibFS
@@ -2374,7 +2378,7 @@ void signal_callback(struct app_context *msg)
 		}
 		else {
 			if(mid > 0)
-				rpc_lease_change(abs(mid), req_id, inum, type, version, blknr, 0, own, root);
+				rpc_lease_change(abs(mid), req_id, inum, type, version, blknr, 0, lq, chown_target_gid, chino_parent_inum);
 		}	
 		mlfs_printf("Leaving signal callback %d\n", res);
 #else

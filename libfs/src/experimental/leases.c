@@ -345,11 +345,7 @@ int revoke_lease(int sockfd, uint32_t seq_n, uint32_t inum)
 	if (!ls)
 		panic("failed to allocate lease\n");
 
-	mlfs_printf("Acquiring lock %s\n", "");
-
-	//pthread_spin_lock(&ls->mutex); //never calls this if we're using shared locks (causes a deadlock)
-
-	mlfs_printf("Done acquiring lock %s\n", "");
+	pthread_spin_lock(&ls->mutex); //never calls this if we're using shared locks (causes a deadlock)
 
 	if(ls->hid != g_self_id)
 		panic("kernfs trying to revoke an unowned lease\n");
@@ -365,21 +361,17 @@ int revoke_lease(int sockfd, uint32_t seq_n, uint32_t inum)
 				goto retry;
 		}
 #else
-		mlfs_printf("Spinning %s\n", "");
 		cpu_relax();
-		ls->holders = 0;
 #endif
 	}
 
 	//rpc_lease_flush_response(sockfd, seq_n, inum, ls->lversion, ls->lblock);
-	mlfs_printf("Doing rpc lease change %s\n", "");
-	rpc_lease_change(ls->mid, g_self_id, ls->inum, LEASE_FREE, ls->lversion, ls->lblock, 0, 0, 0);
-	mlfs_printf("Finished with rpc lease change %s\n", "");
+	rpc_lease_change(ls->mid, g_self_id, ls->inum, LEASE_FREE, ls->lversion, ls->lblock, 0, LEASE_STANDARD, -1, -1);
 
 	ls->state = LEASE_FREE;
 	ls->hid = ls->mid;
 
-	//pthread_spin_unlock(&ls->mutex);
+	pthread_spin_unlock(&ls->mutex);
 
 	mlfs_printf("lease revoked for inum %u\n", inum);
 }
@@ -422,7 +414,7 @@ int mark_lease_revocable(uint32_t inum)
 
 	if(ls->holders == 1) {
 #ifndef LAZY_SURRENDER
-			rpc_lease_change(ls->mid, g_self_id, ls->inum, LEASE_FREE, ls->lversion, ls->lblock, 0, 0, 0);
+			rpc_lease_change(ls->mid, g_self_id, ls->inum, LEASE_FREE, ls->lversion, ls->lblock, 0, LEASE_STANDARD, -1);
 			ls->state = LEASE_FREE;		
 #endif
 
@@ -447,10 +439,10 @@ int mark_lease_revocable(uint32_t inum)
 
 // Wrapper so we don't have to update args on every single acquire_lease call
 int acquire_lease(uint32_t inum, int type, char *path) {
-	return acquire_lease_(inum, type, path, 0, 0);
+	return acquire_lease_(inum, type, path, LEASE_STANDARD, -1, -1);
 }
 
-int acquire_lease_(uint32_t inum, int type, char *path, int own, int root)
+int acquire_lease_(uint32_t inum, int type, char *path, enum lease_qualifier lq, gid_t chown_target_gid, int chino_parent_inum)
 {
 	mlfs_printf("LIBFS ID= %d trying to acquire lease of type %d for inum %u\n", g_self_id, type, inum);
 
@@ -475,7 +467,7 @@ int acquire_lease_(uint32_t inum, int type, char *path, int own, int root)
 retry:
 
 	if(type > ls->state || ls->hid != g_self_id) {
-		rpc_lease_change(ls->mid, g_self_id, ls->inum, type, 0, 0, 1, own, root);
+		rpc_lease_change(ls->mid, g_self_id, ls->inum, type, 0, 0, 1, lq, chown_target_gid, chino_parent_inum);
 		mlfs_printf("Lease error code (if present):%d\n", ls->errcode);
 		// recevied denied response
 		if (ls->errcode == LEASE_DENIED) {
@@ -620,7 +612,8 @@ void update_remote_ondisk_lease(uint8_t node_id, mlfs_lease_t *ls)
 }
 
 // For lease acquisitions, lease must be locked beforehand.
-int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, int *mid, int own, int root)
+int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, \
+					   int *mid, enum lease_qualifier lq, gid_t chown_target_group, int chino_parent_inum)
 {
 	*mid = -1; // Default value
 	//panic("Why is Libfs doing this?\n");
@@ -723,7 +716,36 @@ void shutdown_lease_protocol()
 
 #else
 /* KernFS */
-int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, int *mid, int own, int root)
+
+/* Helper function for finding inode */
+static struct inode *_find_inode(int inum) {
+	struct inode *ip = icache_find(inum);
+	if (!ip) { 
+		mlfs_printf("Inode %d  not in cache\n", inum);
+		ip = iget(inum);
+		struct dinode _dinode; // TODO is this necessary? Shouldn't the inode have the info we need?
+		read_ondisk_inode(inum, &_dinode);
+		ip->_dinode = (struct dinode *)ip;
+		sync_inode_from_dinode(ip, &_dinode);
+		
+		if (ip != NULL) {
+			mlfs_printf("Found inode in disk: ino=%d, uid=%d, gid=%d, perms=%o\n", 
+							ip->inum, _dinode.uid, _dinode.gid, _dinode.perms);
+			
+		} else {
+			panic("inode not found on cache or disk");
+		}
+		
+	} else {
+		mlfs_printf("Found inode in cache: ino=%d, uid=%d, gid=%d, perms=%o\n", 
+					ip->inum, ip->uid, ip->gid, ip->perms);
+	}
+	return ip;
+}
+
+
+int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t logblock, \
+					   int *mid, enum lease_qualifier lq, gid_t chown_target_group, int chino_parent_inum)
 {
 	*mid = -1; // Default value
 	int do_migrate = 0;
@@ -749,65 +771,107 @@ int modify_lease_state(int req_id, int inum, int new_state, int version, addr_t 
 	}
 
 	#if MLFS_PERMISSIONS
-		// TOCTOU bug if we check here? idk man
-		if (new_state != LEASE_FREE) {
+	// TOCTOU bug if we check here? idk man
+	if (new_state != LEASE_FREE) {
 
-			// Get target inode uid / gid / perms
-			mlfs_printf("Checking permissions for inum %d\n", inum);
-			struct inode * ip = icache_find(inum);
-			if (!ip) { 
-				mlfs_printf("Inode %d  not in cache\n", inum);
-				ip = iget(inum);
-				struct dinode _dinode; // TODO is this necessary? Shouldn't the inode have the info we need?
-				read_ondisk_inode(inum, &_dinode);
-				ip->_dinode = (struct dinode *)ip;
-				sync_inode_from_dinode(ip, &_dinode);
-				
-				if (ip != NULL) {
-					mlfs_printf("Found inode in disk: ino=%d, uid=%d, gid=%d, perms=%o\n", 
-								 ip->inum, _dinode.uid, _dinode.gid, _dinode.perms);
-				} else {
-					panic("inode not found on cache or disk");
-				}
-				
-			} else {
-				mlfs_printf("Found inode in cache: ino=%d, uid=%d, gid=%d, perms=%o\n", 
-							ip->inum, ip->uid, ip->gid, ip->perms);
-			}
-			uint32_t ino = ip->inum;
-			uid_t iuid = ip->uid;
-			gid_t igid = ip->gid;
-			uint16_t iperms = ip->perms;
-
-			mlfs_printf("Checking owner: %d Checking root: %d\n", own, root);
-
-			if (own && !check_owner(req_id, iuid)) {
-				mlfs_printf("Access denied: Libfs id=%d is not owner of file\n", req_id);
-				return -EACCES;
-			}
-
-			if (root && !check_root(req_id)) {
-				mlfs_printf("Access denied: Libfs id=%d is not root\n", req_id);
-				return -EACCES;
-			}
-			
-			// Get requesting process uid / gid
-			uid_t ruid;
-			gid_t rgid;
-			if (parse_uid_gid(req_id, &ruid, &rgid) != 0) {
-				mlfs_printf("Could not find uid, gid for libfs ID=%d\n", req_id);
-				return -EACCES;
-			}		
-			mlfs_printf("LibFS ID=%d has uid=%d, gid=%d\n", req_id, ruid, rgid);
-
-			// Do permission check
-			enum permcheck_type check = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
-			if (!permission_check(iuid, igid, ruid, rgid, iperms, check)) {
-				mlfs_printf("Access denied for reqid %d on inode %d\n", req_id, ino);
-				return -EACCES;
-			}
-			mlfs_printf("Access allowed for reqid %d on inode %d\n", req_id, ino);
+		// Get target inode uid / gid / perms
+		mlfs_printf("Checking permissions for inum %d\n", inum);
+		struct inode *ip = _find_inode(inum);
+		if (!ip) {
+			mlfs_printf("Could not find inode %d", inum);
+			return -ENOENT;
 		}
+			
+
+		uint32_t ino = ip->inum;
+		uid_t iuid = ip->uid;
+		gid_t igid = ip->gid;
+		uint16_t iperms = ip->perms;
+
+		// Get requesting process uid / gid
+		uid_t ruid;
+		gid_t rgid;
+		if (parse_uid_gid(req_id, &ruid, &rgid) != 0) {
+			mlfs_printf("Could not find uid, gid for libfs ID=%d\n", req_id);
+			return -ENOENT;
+		}		
+		mlfs_printf("LibFS ID=%d has uid=%d, gid=%d\n", req_id, ruid, rgid);
+
+		// Perform permission checks
+		enum permcheck_type checktype;
+		switch (lq) {		
+			case LEASE_STANDARD: 
+				checktype = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
+				if (!permission_check(iuid, igid, ruid, rgid, iperms, checktype)) {
+					mlfs_printf("access denied: reqid %d (uid %d, gid %d) on inode %d\n", req_id, ruid, rgid, ino);
+					return -EPERM;
+				} break;
+
+			case LEASE_CHMOD: 
+				if (!check_owner(ruid, iuid)) {
+					mlfs_printf("chmod access denied: reqid %d (uid %d, gid %d) is not root or the file/dir's owner\n", req_id, ruid, rgid);
+					return -EPERM;
+				} 
+				// TODO - Track this lease for KernFS so it can re-check the changes on digestion.
+				break;
+
+			case LEASE_CHOWN_OWNER:
+				// since owner checks are more strict, owner+group checks fall under this category.
+				if (!check_root(ruid)) {
+					mlfs_printf("chown owner/owner:group access denied: reqid %d (uid %d, gid %d) is not root\n", req_id, ruid, rgid);
+					return -EPERM;
+				} 
+				// TODO - Track this lease for KernFS so it can re-check the changes on digestion.
+				break;
+
+			case LEASE_CHOWN_GROUP:
+				mlfs_assert(chown_target_group != -1);
+				if (!check_owner(ruid, iuid)) {
+					mlfs_printf("chmod group access denied: reqid %d (uid %d, gid %d) is not root or the file/dir's owner\n", req_id, ruid, rgid);
+					return -EPERM;
+				} 
+
+				// root: can change groups arbitrarily.
+				// owner: must be a member of the group it wants to change the file/dir to.
+				if (!check_root(ruid) && !check_group_membership(ruid, chown_target_group)) {
+					mlfs_printf("chown group-only access denied: reqid %d (uid %d, gid %d) is not root, and not a member of group %d\n", req_id, ruid, rgid, chown_target_group);
+					return -EPERM;
+				} 
+				// TODO - Track this lease for KernFS so it can re-check the changes on digestion.
+				break;
+
+			case LEASE_CHINO:
+				checktype = (new_state == LEASE_READ) ? PC_READ : PC_WRITE;
+				if (!permission_check(iuid, igid, ruid, rgid, iperms, checktype)) {
+					mlfs_printf("chino access denied: permission denied on reqid %d (uid %d, gid %d) on inode %d\n", req_id, ruid, rgid, ino);
+					return -EPERM;
+				} 
+				// Get parent inode to check sticky bit
+				struct inode *pip = _find_inode(chino_parent_inum);
+				if (!pip) {
+					mlfs_printf("Could not find inode %d", chino_parent_inum);
+					return -ENOENT;
+				}
+				uint16_t pperms = pip->perms;
+				uid_t puid = pip->uid;
+
+				// Check sticky bit
+				if (violates_sticky_bit(ruid, puid, iuid, pperms)) {
+					mlfs_printf("chino access denied: sticky bit violated on reqid %d (uid %d, gid %d) on inode %d\n", req_id, ruid, rgid, ino);
+					return -EPERM;
+				}
+
+				// TODO - Enforce that chino_parent_inum is actually the parent of inum.
+				// TODO - Track this lease for KernFS so it can re-check the changes on digestion.
+
+				break;
+
+			default: panic("Invalid lease qualifier provided\n");
+		}
+
+		mlfs_printf("Access allowed for reqid %d on inode %d\n", req_id, ino);
+		
+	}
 	#endif
 
 #ifdef LEASE_MIGRATION
@@ -1047,7 +1111,7 @@ int discard_leases(int req_id)
 			if(item->hid == req_id) {
 				//rpc_lease_change(item->mid, item->inum, LEASE_FREE, 0, 0, 0);
 				int mid;
-				int res = modify_lease_state(req_id, item->inum, LEASE_FREE, 0, 0, &mid, 0, 0);
+				int res = modify_lease_state(req_id, item->inum, LEASE_FREE, 0, 0, &mid, LEASE_STANDARD, -1, -1);
 				if (res < 0) {
 					mlfs_printf("Error in discarding lease for inum %u\n", item->inum);
 				} else {

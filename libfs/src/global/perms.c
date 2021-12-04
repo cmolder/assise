@@ -74,12 +74,10 @@ int should_group_bits_apply(uid_t uid, gid_t primary_gid, gid_t inode_gid) {
 }
 
 
-int violates_sticky_bit(uid_t uid, struct inode *parent, struct inode *to_manipulate) {
-        if ((parent->perms & S_ISVTX) == 0)
+int violates_sticky_bit(uid_t uid, uid_t parent_uid, uid_t target_uid, uint16_t parent_perms) {
+        if ((parent_perms & S_ISVTX) == 0)
                 return 0;
-
-        /* FIXME: check CAP_FOWNER instead of euid != 0 */
-        return uid != 0 && uid != to_manipulate->uid && uid != parent->uid;
+        return !(check_root(uid)) && uid != target_uid && uid != parent_uid;
 }
 
 int permission_check(uid_t inode_uid, gid_t inode_gid, uid_t check_uid, gid_t check_gid, uint16_t perms, enum permcheck_type check)
@@ -150,21 +148,40 @@ int parse_uid_gid(int req_id, uid_t *uid, gid_t *gid) {
 	return 0;
 }
 
-// Check if process that sent req_id is running as root
-int check_root(int req_id) {
-	int uid = -1;
-	int gid = -1;
-
-	parse_uid_gid(req_id, &uid, &gid);
+// Check if user uid is running as root
+int check_root(uid_t uid) {
 	return uid == 0;
 }
 
-// Check if process that sent req_id is owner of file (or root)
-int check_owner(int req_id, uid_t inode_uid) {
-	int uid = -1;
-	int gid = -1;
-
-	parse_uid_gid(req_id, &uid, &gid);
+// Check if user uid is owner of file (or root)
+int check_owner(uid_t uid, uid_t inode_uid) {
 	return uid == 0 || uid == inode_uid;
 }
 
+// Check if user uid is a member of group target_gid
+int check_group_membership(uid_t uid, gid_t target_gid) {
+        mlfs_printf("Checking if uid %d is a member of group %d\n", uid, target_gid);
+
+        int secondary_grp_count;
+        gid_t *secondary_grp_list;
+
+        if (get_secondary_groups(uid, &secondary_grp_list, &secondary_grp_count) < 0) {
+                /* XXX: Swallowing error and rejecting */
+                mlfs_debug("[DEBUG] get_secondary_groups failed for uid %d, target_gid %g\n", uid, target_gid);
+                mlfs_free(secondary_grp_list);
+                return 0;
+        }
+
+        mlfs_debug("[DEBUG] User %u has %u groups\n", uid, secondary_grp_count);
+        for (int i = 0; i < secondary_grp_count; i++) {
+                mlfs_debug("[DEBUG] secondary_grp_list[%d] = %d\n", i, secondary_grp_list[i]);
+                if (secondary_grp_list[i] == target_gid) {
+                        mlfs_free(secondary_grp_list);
+                        return 1;
+                }
+        }
+
+        // Failure: The group wasn't in the secondary group list.
+        mlfs_free(secondary_grp_list);
+        return 0;
+}
