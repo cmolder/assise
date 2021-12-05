@@ -1214,7 +1214,7 @@ int set_shared_pages_readable(struct inode *ip) {
 	blk_base = bmap_req.block_no;
 	blk_found = bmap_req.blk_count_found;
 
-	int protect = mprotect(round_down_to_alignment(g_bdev[g_root_dev]->map_base_addr + blk_base), round_up_to_alignment(blk_found), PROT_READ);
+	int protect = mprotect(round_down_to_alignment(g_bdev[g_root_dev]->map_base_addr + (blk_base << g_block_size_shift)), round_up_to_alignment(blk_found << g_block_size_shift), PROT_READ);
 	if (protect == -1) {
 		mlfs_printf("\x1b[31mFailed to protect region %s\n\x1b[0m", "");
 		return -1;
@@ -1233,7 +1233,7 @@ int set_shared_pages_readable(struct inode *ip) {
         	}
 		mlfs_debug("next extent: block %lu, length %u\n", bmap_req.block_no, bmap_req.blk_count_found);
 
-		protect = mprotect(round_down_to_alignment(bmap_req.block_no), round_up_to_alignment(bmap_req.blk_count_found), PROT_READ);
+		protect = mprotect(round_down_to_alignment(g_bdev[g_root_dev]->map_base_addr + bmap_req.block_no << g_block_size_shift), round_up_to_alignment(bmap_req.blk_count_found << g_block_size_shift), PROT_READ);
 		if (protect == -1) {
 			mlfs_printf("\x1b[31mFailed to protect region %s\n\x1b[0m", "");
 			return -1;
@@ -1255,7 +1255,7 @@ int set_shared_pages_readable(struct inode *ip) {
 
 // Maybe need to do some conflict checking here
 int revoke_shared_pages_readable(int inum) {
-	return;
+	// return;
 	// struct file *f;
 	int ret;
 	uint64_t blk_count;
