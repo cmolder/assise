@@ -82,7 +82,7 @@ int violates_sticky_bit(uid_t uid, uid_t parent_uid, uid_t target_uid, uint16_t 
 
 int permission_check(uid_t inode_uid, gid_t inode_gid, uid_t check_uid, gid_t check_gid, uint16_t perms, enum permcheck_type check)
 {
-	mlfs_printf("Checking %d perms for uid %d, gid %d, perm %d against inode uid %d, gid %d, mode %o\n", 
+	mlfs_info("Checking %d perms for uid %d, gid %d, perm %d against inode uid %d, gid %d, mode %o\n", 
 				check, check_uid, check_gid, check, inode_uid, inode_gid, perms);
 
 	// If root, allow
@@ -160,7 +160,7 @@ int check_owner(uid_t uid, uid_t inode_uid) {
 
 // Check if user uid is a member of group target_gid
 int check_group_membership(uid_t uid, gid_t target_gid) {
-        mlfs_printf("Checking if uid %d is a member of group %d\n", uid, target_gid);
+        mlfs_info("Checking if uid %d is a member of group %d\n", uid, target_gid);
 
         int secondary_grp_count;
         gid_t *secondary_grp_list;
