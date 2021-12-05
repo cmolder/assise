@@ -1300,7 +1300,8 @@ int revoke_shared_pages_readable(int inum) {
 	blk_base = bmap_req.block_no;
 	blk_found = bmap_req.blk_count_found;
 
-	int protect = mprotect(round_down_to_alignment(g_bdev[g_root_dev]->map_base_addr + blk_base), round_up_to_alignment(blk_found), PROT_NONE);
+	int protect = mprotect(round_down_to_alignment(g_bdev[g_root_dev]->map_base_addr + (blk_base << g_block_size_shift)), round_up_to_alignment(blk_found << g_block_size_shift), PROT_NONE);
+
 	if (protect == -1) {
 		mlfs_printf("\x1b[31mFailed to revoke region %s\n\x1b[0m", "");
 		return -1;
@@ -1319,7 +1320,8 @@ int revoke_shared_pages_readable(int inum) {
         	}
 		mlfs_debug("next extent: block %lu, length %u\n", bmap_req.block_no, bmap_req.blk_count_found);
 
-		protect = mprotect(round_down_to_alignment(bmap_req.block_no), round_up_to_alignment(bmap_req.blk_count_found), PROT_NONE);
+		protect = mprotect(round_down_to_alignment(g_bdev[g_root_dev]->map_base_addr + (bmap_req.block_no << g_block_size_shift)), round_up_to_alignment(bmap_req.blk_count_found << g_block_size_shift), PROT_NONE);
+		
 		if (protect == -1) {
 			mlfs_printf("\x1b[31mFailed to revoke region %s\n\x1b[0m", "");
 			return -1;
