@@ -309,7 +309,7 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 	printf("dev[%d] with offset %lu has base addr: %lu\n", dev, offset, (intptr_t)dax_addr[dev]);
 #endif
 
-	// #ifdef KERNFS
+	#ifdef KERNFS
  	 dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
 		                        MAP_SHARED| MAP_POPULATE, fd, 0);
 
@@ -317,7 +317,7 @@ uint8_t *dax_init(uint8_t dev, char *dev_path)
 		perror("cannot map file system file");
 		exit(-1);
 	}
-	// #endif
+	#endif
 
 	// FIXME: for some reason, when mmap the Linux dev-dax, dax_addr is not accessible
 	// up to the max dev_size (last 550 MB is not accessible).
@@ -342,35 +342,56 @@ void dax_init_cleanup(uint8_t dev) {
 	#endif
 }
 
+uint64_t round_down_to_alignment (uint64_t value) {
+	uint64_t align = 2097152UL;
+	uint64_t diff = value % align;
+	if (diff != 0) {
+		return value - diff;
+	}
+	return value;
+}
+uint64_t round_up_to_alignment (uint64_t value) {
+	uint64_t align = 2097152UL;
+	uint64_t diff = value % align;
+	if (diff != 0) {
+		return value + (align - diff);
+	}
+	return value;
+}
 int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 {
-	mlfs_printf("Reading dev %d blockno %d io_size %d and dev size %d\n and dax_fd is %d", dev, blockno,io_size, dev_size[dev],dax_fd);
-	uint8_t* virt_addr = (uint8_t *)mmap(NULL, (dev_size[dev]-4096*2), PROT_READ | PROT_WRITE, MAP_SHARED| MAP_POPULATE, dax_fd, 4096*2);
-	printf("\n\njust mapped for dax_read\n\n");
-	#ifdef LIBFS
-//	if (1) {
+//1	mlfs_printf("Reading dev %d blockno %d io_size %d and dev size %lu\n and dax_fd is %d", dev, blockno,io_size, dev_size[dev],dax_fd);
+	
+	uint8_t* virt_addr = NULL; 
 
-		//dax_addr[dev] 
-//		virt_addr = (uint8_t *)mmap(NULL, 112, PROT_READ | PROT_WRITE,
-//		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
-		
-//my change 	//virt_addr = (uint8_t *) mmap (NULL, io_size, PROT_READ | PROT_WRITE,MAP_SHARED| MAP_POPULATE, dax_fd, blockno * g_block_size_bytes);
-		
-		
-//		if(virt_addr == MAP_FAILED){
-//			printf("\n\nmapping call failed\n\n**************\n");
-//		}
-//		mlfs_printf("Demand mapping for block %d\n", blockno);
-//	}
+	#ifdef LIBFS
+
+	virt_addr = (uint8_t *)mmap(NULL, round_up_to_alignment(io_size), PROT_READ | PROT_WRITE, MAP_SHARED| MAP_POPULATE, dax_fd, round_down_to_alignment(blockno*g_block_size_bytes));
+
+	#endif
+
+        uint64_t align = 2097152UL;
+	uint64_t diff = (blockno*g_block_size_bytes) % align;
+	uint8_t* real_virt_addr = NULL;
+
+
+
+	#ifdef LIBFS
+
+	real_virt_addr = (uint8_t*) ((uint64_t) virt_addr + (uint64_t) diff );
+
 	#endif
 	
-//	#ifdef KERNFS
-//	dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,MAP_SHARED| MAP_POPULATE, dax_fd, 0);
-//	virt_addr =  dax_addr[dev] + (blockno * g_block_size_bytes);
-//	#endif	
-	mlfs_printf("\n\nvirt_addr shouldn't be NULL %d \n",1);
-	assert(virt_addr);
-	memmove(buf, virt_addr, io_size);
+	#ifdef KERNFS
+
+	real_virt_addr = dax_addr[dev] + (blockno * g_block_size_bytes); 
+
+	#endif
+
+        mlfs_printf("\n\nvirt_addr shouldn't be NULL %d \n",1);
+	assert(real_virt_addr);
+
+	memmove(buf, real_virt_addr, io_size);
 
 	//perfmodel_add_delay(1, io_size);
 
@@ -378,10 +399,10 @@ int dax_read(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 			dev, blockno, blockno * g_block_size_bytes, io_size);
 
 	#ifdef LIBFS
-	if (demand_map) {
-		munmap(virt_addr, io_size);
+	
+		munmap(virt_addr, round_up_to_alignment(io_size));
 		mlfs_printf("Unmapping %d\n", blockno);
-	}
+	
 	#endif
 
 	return io_size;
@@ -391,19 +412,52 @@ int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offse
 		uint32_t io_size)
 {
 	mlfs_printf("Reading unaligned dev %d blockno %d\n", dev, blockno);
+	
+	uint8_t* virt_addr = NULL; 
 
 	#ifdef LIBFS
-	if (demand_map) {
-		dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
-		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
-		
-		mlfs_printf("Demand mapping for block %d\n", blockno);	
-	}
+//	if (demand_map) {
+//		dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+//		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+//		
+//		mlfs_printf("Demand mapping for block %d\n", blockno);	
+//	}
+
+	virt_addr = (uint8_t *)mmap(NULL, round_up_to_alignment(io_size), PROT_READ | PROT_WRITE, MAP_SHARED| MAP_POPULATE, dax_fd, round_down_to_alignment(blockno*g_block_size_bytes));
+
 	#endif
 
+
+        uint64_t align = 2097152UL;
+	uint64_t diff = (blockno*g_block_size_bytes) % align;
+	uint8_t* real_virt_addr = NULL;
+
+
+
+	#ifdef LIBFS
+
+	real_virt_addr = (uint8_t*) ((uint64_t) virt_addr + (uint64_t) diff + (uint64_t) offset);
+
+	#endif
+	
+	#ifdef KERNFS
+
+	real_virt_addr = dax_addr[dev] + (blockno * g_block_size_bytes) + offset; 
+
+	#endif
+
+        mlfs_printf("\n\nvirt_addr shouldn't be NULL %d \n",1);
+	assert(real_virt_addr);
+
+
+
+
+
+
+
+
 	//copy and flush data to pmem.
-	memmove(buf, dax_addr[dev] + (blockno * g_block_size_bytes) + offset, 
-			io_size);
+	memmove(buf, real_virt_addr, io_size);
 
 	//perfmodel_add_delay(1, io_size);
 	
@@ -411,10 +465,12 @@ int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offse
 			dev, blockno, (blockno * g_block_size_bytes) + offset, io_size);
 
 	#ifdef LIBFS
-	if (demand_map) {
-		munmap(dax_addr[dev], dev_size[dev]);
+		munmap(virt_addr, round_up_to_alignment(io_size));
+
+	//	munmap(dax_addr[dev], dev_size[dev]);
+	
 		mlfs_printf("unmapping %d\n", blockno);
-	}
+	
 	#endif
 
 	return io_size;
@@ -425,18 +481,51 @@ int dax_read_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offse
  * it call dax_commit to drain changes (like pmem_memmove_persist) */
 int dax_write(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 {
-	mlfs_printf("Writing dev %d blockno %d\n, size of the dev is %d", dev, blockno,dev_size[dev]);
+	mlfs_printf("Writing dev %d blockno %d\n, size of the dev is %d\n", dev, blockno,dev_size[dev]);
+	uint8_t* virt_addr = NULL; 
 
 	#ifdef LIBFS
-	if (demand_map)
-		dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
-		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+//		dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+//		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+
+	virt_addr = (uint8_t *)mmap(NULL, round_up_to_alignment(io_size), PROT_READ | PROT_WRITE, MAP_SHARED| MAP_POPULATE, dax_fd, round_down_to_alignment(blockno*g_block_size_bytes));
+
+
+
+	if (virt_addr == MAP_FAILED) {
+		perror("cannot map file system file");
+		exit(-1);
+	}
+	#endif
+	
+	#ifdef KERFS
+	printf("\nkernfs instance dev should be mapped\n");
+	#endif
+	
+
+        uint64_t align = 2097152UL;
+	uint64_t diff = (blockno*g_block_size_bytes) % align;
+	uint8_t* real_virt_addr = NULL;
+
+
+
+	#ifdef LIBFS
+
+	real_virt_addr = (uint8_t*) ((uint64_t) virt_addr + (uint64_t) diff );
+
+	#endif
+	
+	#ifdef KERNFS
+
+	real_virt_addr = dax_addr[dev] + (blockno * g_block_size_bytes); 
+
 	#endif
 
-	addr_t addr = (addr_t)dax_addr[dev] + (blockno << g_block_size_shift);
+
+//	addr_t addr = (addr_t)dax_addr[dev] + (blockno << g_block_size_shift);
 
 	//copy and flush data to pmem.
-	pmem_memmove_persist((void *)addr, buf, io_size);
+	pmem_memmove_persist((void *)real_virt_addr, buf, io_size);
 	//PERSISTENT_BARRIER();
 
 
@@ -447,8 +536,9 @@ int dax_write(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t io_size)
 			blockno, (blockno * g_block_size_bytes), io_size);
 
 	#ifdef LIBFS
-	if (demand_map)
-		munmap(dax_addr[dev], dev_size[dev]);
+		munmap(virt_addr, round_up_to_alignment(io_size));
+
+//		munmap(virt_addr, dev_size[dev]);
 	#endif	
 
 	return io_size;
@@ -458,17 +548,47 @@ int dax_write_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offs
 		uint32_t io_size)
 {
 	mlfs_printf("Writing unaligned %d blockno %d\n", dev, blockno);
+	uint8_t* virt_addr = NULL; 
 
 	#ifdef LIBFS
-	if (demand_map)
-		dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
-		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+//	if (demand_map)
+//		dax_addr[dev] = (uint8_t *)mmap(NULL, dev_size[dev], PROT_READ | PROT_WRITE,
+//		                        MAP_SHARED| MAP_POPULATE, dax_fd, 0);
+	virt_addr = (uint8_t *)mmap(NULL, round_up_to_alignment(io_size), PROT_READ | PROT_WRITE, MAP_SHARED| MAP_POPULATE, dax_fd, round_down_to_alignment(blockno*g_block_size_bytes));
+
+
+
+	if (virt_addr == MAP_FAILED) {
+		perror("cannot map file system file");
+		exit(-1);
+	}
+
 	#endif
 
-	addr_t addr = (addr_t)dax_addr[dev] + (blockno << g_block_size_shift) + offset;
+	//addr_t addr = (addr_t)dax_addr[dev] + (blockno << g_block_size_shift) + offset;
+
+
+        uint64_t align = 2097152UL;
+	uint64_t diff = (blockno*g_block_size_bytes) % align;
+	uint8_t* real_virt_addr = NULL;
+
+
+
+	#ifdef LIBFS
+
+	real_virt_addr = (uint8_t*) ((uint64_t) virt_addr + (uint64_t) diff + (uint64_t)offset);
+
+	#endif
+	
+	#ifdef KERNFS
+
+	real_virt_addr = dax_addr[dev] + (blockno * g_block_size_bytes) + offset; 
+
+	#endif
+
 
 	//copy and flush data to pmem.
-	pmem_memmove_persist((void *)addr, buf, io_size);
+	pmem_memmove_persist((void *)real_virt_addr, buf, io_size);
 	//PERSISTENT_BARRIER();
 	
 	//memmove(dax_addr[dev] + (blockno * g_block_size_bytes) + offset, buf, io_size);
@@ -478,8 +598,13 @@ int dax_write_unaligned(uint8_t dev, uint8_t *buf, addr_t blockno, uint32_t offs
 			blockno, (blockno * g_block_size_bytes) + offset, io_size);
 
 	#ifdef LIBFS
-	if (demand_map)
-		munmap(dax_addr[dev], dev_size[dev]);
+	
+	//if (demand_map)
+	//	munmap(dax_addr[dev], dev_size[dev]);
+	
+	munmap(virt_addr, round_up_to_alignment(io_size));
+
+
 	#endif
 
 	return io_size;
