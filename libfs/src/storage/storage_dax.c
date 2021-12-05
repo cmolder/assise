@@ -378,11 +378,14 @@ void dax_init_cleanup(uint8_t dev, struct disk_superblock *disk_sb) {
 	// Called after LibFS is initialized. Setting up memory permissions 
 	// Now that LibFS is intialized and has read the superblock and such, we need to break up the allocation
 	mlfs_printf("Setting permissions for device %d\n", dev);
+	int ret = 0;
+	/*
 	int ret = mprotect(dax_addr[dev], dev_size[dev], PROT_NONE);
 	if (ret == -1) {
 		mlfs_printf("\x1b[31mFailed to protect region %s\n\x1b[0m", "");
 		exit(-1);
 	}
+	*/
 
 	// Mapping log device:
 	// May need to round everything to 2MB

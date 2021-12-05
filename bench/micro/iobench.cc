@@ -798,7 +798,7 @@ int main(int argc, char *argv[])
 	char zipf_file_name[100];
 	test_t cur_test;
 
-	int n_repeat = 1;
+	int n_repeat = 5;
 
 	device_id = getenv("FILE_ID");
 	ops_cap = 0;
